@@ -28,6 +28,9 @@ function AuthPage() {
     e.preventDefault();
     // Handle form submission
     console.log(isSignUp ? "Sign up" : "Sign in", formData);
+    if (isSignUp) {
+      setIsConfirming(true);
+    }
   };
 
   return (
@@ -45,122 +48,116 @@ function AuthPage() {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
-              <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2 duration-300">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="firstName"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    First Name
-                  </Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      handleInputChange("firstName", e.target.value)
-                    }
-                    className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
-                    required={isSignUp}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="lastName"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Last Name
-                  </Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      handleInputChange("lastName", e.target.value)
-                    }
-                    className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
-                    required={isSignUp}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
+          {isConfirming ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
               <Label
-                htmlFor="email"
+                htmlFor="confirmationCode"
                 className="text-sm font-medium text-gray-700"
               >
-                Email
+                Confirmation Code
               </Label>
               <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
+                id="confirmationCode"
+                type="text"
+                value={formData.confirmationCode}
+                onChange={(e) =>
+                  setConfirmationCode("firstName", e.target.value)
+                }
                 className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
-                required
+                required={isConfirming}
               />
-            </div>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="password"
-                className="text-sm font-medium text-gray-700"
+              <Button
+                type="submit"
+                className="w-full h-11 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
               >
-                Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
-                  className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200 pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="!bg-transparent !border-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </div>
+                Confirm
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isSignUp && (
+                <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2 duration-300">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="firstName"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      First Name
+                    </Label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) =>
+                        handleInputChange("firstName", e.target.value)
+                      }
+                      className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
+                      required={isSignUp}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="lastName"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Last Name
+                    </Label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) =>
+                        handleInputChange("lastName", e.target.value)
+                      }
+                      className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
+                      required={isSignUp}
+                    />
+                  </div>
+                </div>
+              )}
 
-            {isSignUp && (
-              <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+              <div className="space-y-2">
                 <Label
-                  htmlFor="confirmPassword"
+                  htmlFor="email"
                   className="text-sm font-medium text-gray-700"
                 >
-                  Confirm Password
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="password"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Password
                 </Label>
                 <div className="relative">
                   <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
                     onChange={(e) =>
-                      handleInputChange("confirmPassword", e.target.value)
+                      handleInputChange("password", e.target.value)
                     }
                     className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200 pr-10"
-                    required={isSignUp}
+                    required
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() => setShowPassword(!showPassword)}
                     className="!bg-transparent !border-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                   >
-                    {showConfirmPassword ? (
+                    {showPassword ? (
                       <EyeOff className="h-4 w-4" />
                     ) : (
                       <Eye className="h-4 w-4" />
@@ -168,32 +165,70 @@ function AuthPage() {
                   </button>
                 </div>
               </div>
-            )}
 
-            {!isSignUp && (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  className="!bg-transparent !border-none text-sm text-gray-500 hover:text-purple-600 transition-colors duration-200"
-                >
-                  Forgot password?
-                </button>
-              </div>
-            )}
+              {isSignUp && (
+                <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  <Label
+                    htmlFor="confirmPassword"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={formData.confirmPassword}
+                      onChange={(e) =>
+                        handleInputChange("confirmPassword", e.target.value)
+                      }
+                      className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200 pr-10"
+                      required={isSignUp}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="!bg-transparent !border-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
-            <Button
-              type="submit"
-              className="w-full h-11 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
-            >
-              {isSignUp ? "Sign Up" : "Login"}
-            </Button>
-          </form>
+              {!isSignUp && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="!bg-transparent !border-none text-sm text-gray-500 hover:text-purple-600 transition-colors duration-200"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
 
+              <Button
+                type="submit"
+                className="w-full h-11 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+              >
+                {isSignUp ? "Sign Up" : "Login"}
+              </Button>
+            </form>
+          )}
           <div className="text-center">
             <span className="text-sm text-gray-500">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => {
+                  setIsConfirming(false);
+                  setIsSignUp(!isSignUp);
+                }}
                 className="!bg-transparent !border-none text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200 hover:underline"
               >
                 {isSignUp ? "Sign in" : "Sign up"}
