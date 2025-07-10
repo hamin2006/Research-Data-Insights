@@ -5,9 +5,9 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useEffect, useState, createContext } from "react";
-import Login from './pages/Login';
-import UserHomePage from './pages/User/UserHomePage';
-import AdminHomePage from './pages/Admin/AdminHomePage';
+import Login from "./pages/Login";
+import UserHomePage from "./pages/Member/MemberHomePage";
+import AdminHomePage from "./pages/Admin/AdminHomePage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -31,12 +31,15 @@ function App() {
     <>
       <Router>
         <Routes>
-          <Route path="/" element={user ? <Navigate to = "/home"/> : <Login />} />
+          <Route
+            path="/"
+            element={user ? <Navigate to="/home" /> : <Login />}
+          />
           <Route path="/home" element={getHomePage()} />
         </Routes>
       </Router>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
