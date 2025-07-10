@@ -6,8 +6,9 @@ import {
 } from "react-router-dom";
 import { useEffect, useState, createContext } from "react";
 import Login from "./pages/Login";
-import UserHomePage from "./pages/Member/MemberHomePage";
+import MemberHomePage from "./pages/Member/MemberHomePage";
 import AdminHomePage from "./pages/Admin/AdminHomePage";
+import ResearcherHomePage from "./pages/Researcher/ResearcherHomePage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -21,7 +22,7 @@ function App() {
     ) {
       return <AdminHomePage />;
     } else if (userGroup && userGroup.includes("User")) {
-      return <UserHomePage />;
+      return <MemberHomePage />;
     } else {
       return <Login />;
     }
@@ -36,6 +37,9 @@ function App() {
             element={user ? <Navigate to="/home" /> : <Login />}
           />
           <Route path="/home" element={getHomePage()} />
+          <Route path="/admin" element={<AdminHomePage />} />
+          <Route path="/member" element={<MemberHomePage />} />
+          <Route path="/researcher" element={<ResearcherHomePage />} />
         </Routes>
       </Router>
     </>
