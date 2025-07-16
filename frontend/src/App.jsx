@@ -5,6 +5,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useEffect, useState, createContext } from "react";
+import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import Login from "./pages/Login";
 import MemberHomePage from "./pages/Member/MemberHomePage";
 import AdminHomePage from "./pages/Admin/AdminHomePage";
@@ -17,6 +18,46 @@ function App() {
   const [user, setUser] = useState(null);
   const [userGroup, setUserGroup] = useState(null);
   const [group, setGroup] = useState(null);
+
+  const theme = createTheme({
+    palette: {
+      primary: {
+        main: "#1976d2",
+      },
+      secondary: {
+        main: "#dc004e",
+      },
+      background: {
+        default: "#f8fafc",
+        paper: "#ffffff",
+      },
+    },
+    typography: {
+      h6: {
+        fontWeight: 600,
+      },
+    },
+    components: {
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            transition: "all 0.3s ease-in-out",
+            "&:hover": {
+              transform: "translateY(-4px)",
+              boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+            },
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            textTransform: "none",
+          },
+        },
+      },
+    },
+  });
 
   const getHomePage = () => {
     if (
@@ -32,7 +73,8 @@ function App() {
   };
 
   return (
-    <>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
       <Router>
         <Routes>
           <Route
@@ -74,7 +116,7 @@ function App() {
           />
         </Routes>
       </Router>
-    </>
+    </ThemeProvider>
   );
 }
 

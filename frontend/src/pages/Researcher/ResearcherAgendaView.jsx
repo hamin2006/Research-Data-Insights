@@ -1,22 +1,11 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Box, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
-import Sidebar from "./Agenda/Sidebar";
+import Sidebar from "./Agenda/ResearcherSidebar";
 import AddUsers from "./Agenda/AddUsers";
-import PromptSettings from "./Agenda/PromptSettings";
+import PromptSettings from "./Agenda/ResearcherPromptSettings";
 import AISettings from "./Agenda/AISettings";
 import ResearcherNavbar from "../../components/ResearcherNavbar";
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#8B5CF6",
-    },
-    background: {
-      default: "#F8FAFC",
-    },
-  },
-});
 
 export default function ResearcherAgendaView({ tab }) {
   const { agendaId } = useParams();
@@ -50,27 +39,24 @@ export default function ResearcherAgendaView({ tab }) {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          minHeight: "100vh",
-          minWidth: "100vw",
-        }}
-      >
-        <ResearcherNavbar />
-        <Box sx={{ display: "flex", flexGrow: 1 }}>
-          <Sidebar activeTab={tab} onTabChange={goToActiveTab} />
-          <Box
-            component="main"
-            sx={{ flexGrow: 1, p: 3, backgroundColor: "#F3F4F6" }}
-          >
-            {renderContent()}
-          </Box>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        minWidth: "100vw",
+      }}
+    >
+      <ResearcherNavbar />
+      <Box sx={{ display: "flex", flexGrow: 1 }}>
+        <Sidebar activeTab={tab} onTabChange={goToActiveTab} />
+        <Box
+          component="main"
+          sx={{ flexGrow: 1, p: 3, backgroundColor: "#F3F4F6" }}
+        >
+          {renderContent()}
         </Box>
       </Box>
-    </ThemeProvider>
+    </Box>
   );
 }

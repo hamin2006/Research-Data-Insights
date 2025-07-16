@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 const tabs = ["Responses", "Context Documents", "Prompt Settings", "Chat"];
 
-export default function Sidebar({ activeTab, onTabChange }) {
+export default function MemberSidebar({ activeTab, onTabChange }) {
   return (
     <Drawer
       variant="permanent"

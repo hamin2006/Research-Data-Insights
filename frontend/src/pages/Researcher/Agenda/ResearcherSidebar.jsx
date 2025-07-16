@@ -8,9 +8,16 @@ import {
   Drawer,
 } from "@mui/material";
 
-const tabs = ["Users", "Prompt Settings", "AI Settings"];
+const tabs = [
+  "Users",
+  "Responses",
+  "Context Documents",
+  "Prompt Settings",
+  "AI Settings",
+  "Chat",
+];
 
-export default function Sidebar({ activeTab, onTabChange }) {
+export default function ResearcherSidebar({ activeTab, onTabChange }) {
   return (
     <Drawer
       variant="permanent"

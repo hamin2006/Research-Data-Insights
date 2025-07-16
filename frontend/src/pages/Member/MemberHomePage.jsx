@@ -1,49 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Typography, Grid, Box, Container } from "@mui/material";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
 import MemberNavbar from "../../components/MemberNavbar";
 import AgendaCard from "../../components/AgendaCard";
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#1976d2",
-    },
-    secondary: {
-      main: "#dc004e",
-    },
-    background: {
-      default: "#f8fafc",
-      paper: "#ffffff",
-    },
-  },
-  typography: {
-    h6: {
-      fontWeight: 600,
-    },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          transition: "all 0.3s ease-in-out",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-          },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-  },
-});
 
 const agendas = [
   {
@@ -104,43 +62,40 @@ const ResearcherHomePage = () => {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box
-        sx={{
-          minHeight: "100vh",
-          minWidth: "100vw",
-          background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
-        }}
-      >
-        <MemberNavbar />
+    <Box
+      sx={{
+        minHeight: "100vh",
+        minWidth: "100vw",
+        background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
+      }}
+    >
+      <MemberNavbar />
 
-        <Container maxWidth="xl" sx={{ py: 4 }}>
-          <Box sx={{ mb: 4 }}>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ fontWeight: 500 }}
-            >
-              Home - Recent Agendas
-            </Typography>
-          </Box>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontWeight: 500 }}
+          >
+            Home - Recent Agendas
+          </Typography>
+        </Box>
 
-          <Grid container spacing={3}>
-            {agendas.map((agenda, index) => (
-              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
-                <AgendaCard
-                  agenda={agenda}
-                  index={index}
-                  role="member"
-                  onClick={() => handleMemberViewAgenda(agenda.id)}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      </Box>
-    </ThemeProvider>
+        <Grid container spacing={3}>
+          {agendas.map((agenda, index) => (
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
+              <AgendaCard
+                agenda={agenda}
+                index={index}
+                role="member"
+                onClick={() => handleMemberViewAgenda(agenda.id)}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Container>
+    </Box>
   );
 };
 

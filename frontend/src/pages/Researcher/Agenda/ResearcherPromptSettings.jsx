@@ -5,10 +5,8 @@ import {
   TextField,
   Button,
   Paper,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Chip,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import { ExpandMore, Save } from "@mui/icons-material";
 
@@ -16,6 +14,9 @@ export default function PromptSettings() {
   const [textGenPrompt, setTextGenPrompt] = useState("");
   const [scoringPrompt, setScoringPrompt] = useState("");
   const [selfAggPrompt, setSelfAggPrompt] = useState("");
+  const [textGenDP, setTextGenDP] = useState(false);
+  const [scoringDP, setScoringDP] = useState(false);
+  const [selfAggDP, setSelfAggDP] = useState(false);
 
   return (
     <Box>
@@ -34,6 +35,25 @@ export default function PromptSettings() {
           This controls the instructions given to the AI chat assistant.
           Changing it will change its behaviour.
         </Typography>
+        <FormControlLabel
+          key={"generalLLMPrompt"}
+          control={
+            <Checkbox
+              checked={textGenDP}
+              onChange={() => {
+                setTextGenDP(!textGenDP);
+              }}
+              sx={{
+                color: "#8B5CF6",
+                "&.Mui-checked": { color: "#8B5CF6" },
+              }}
+            />
+          }
+          label={
+            <Typography variant="body1">{"Set Default Prompt"}</Typography>
+          }
+        />
+
         <TextField
           fullWidth
           multiline
@@ -54,6 +74,24 @@ export default function PromptSettings() {
           assistants used as context for aggregated scoring. Changing it will
           change its behaviour.
         </Typography>
+        <FormControlLabel
+          key={"scoringPrompt"}
+          control={
+            <Checkbox
+              checked={scoringDP}
+              onChange={() => {
+                setScoringDP(!scoringDP);
+              }}
+              sx={{
+                color: "#8B5CF6",
+                "&.Mui-checked": { color: "#8B5CF6" },
+              }}
+            />
+          }
+          label={
+            <Typography variant="body1">{"Set Default Prompt"}</Typography>
+          }
+        />
         <TextField
           fullWidth
           multiline
@@ -74,6 +112,24 @@ export default function PromptSettings() {
           will dictate how aggregated scoring will take place. Changing it will
           change its behaviour.
         </Typography>
+        <FormControlLabel
+          key={"selfAggPrompt"}
+          control={
+            <Checkbox
+              checked={selfAggDP}
+              onChange={() => {
+                setSelfAggDP(!selfAggDP);
+              }}
+              sx={{
+                color: "#8B5CF6",
+                "&.Mui-checked": { color: "#8B5CF6" },
+              }}
+            />
+          }
+          label={
+            <Typography variant="body1">{"Set Default Prompt"}</Typography>
+          }
+        />
         <TextField
           fullWidth
           multiline

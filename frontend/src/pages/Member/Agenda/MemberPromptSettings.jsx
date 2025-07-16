@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { ExpandMore, Save } from "@mui/icons-material";
 
-export default function PromptSettings() {
+export default function MemberPromptSettings() {
   const [textGenPrompt, setTextGenPrompt] = useState("");
   const [scoringPrompt, setScoringPrompt] = useState("");
   const [selfAggPrompt, setSelfAggPrompt] = useState("");

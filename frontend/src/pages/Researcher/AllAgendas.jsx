@@ -158,105 +158,102 @@ export default function Component() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box
-        sx={{
-          minHeight: "100vh",
-          minWidth: "100vw",
-          background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
-        }}
-      >
-        <ResearcherNavbar />
-        {/* Main Content */}
-        <Container maxWidth="xl" sx={{ py: 4 }}>
-          {/* Page Title */}
-          <Box sx={{ textAlign: "center", mb: 4 }}>
-            <Typography
-              variant="h4"
-              component="h2"
-              sx={{ fontWeight: 600, color: "text.primary", mb: 3 }}
-            >
-              View All Agendas
-            </Typography>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        minWidth: "100vw",
+        background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
+      }}
+    >
+      <ResearcherNavbar />
+      {/* Main Content */}
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        {/* Page Title */}
+        <Box sx={{ textAlign: "center", mb: 4 }}>
+          <Typography
+            variant="h4"
+            component="h2"
+            sx={{ fontWeight: 600, color: "text.primary", mb: 3 }}
+          >
+            View All Agendas
+          </Typography>
 
-            {/* Search Bar */}
-            <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-              <TextField
-                placeholder="Search By Name"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                sx={{
-                  width: "100%",
-                  maxWidth: 600,
-                  "& .MuiOutlinedInput-root": {
-                    backgroundColor: "white",
-                    borderRadius: 2,
-                    "& fieldset": {
-                      borderColor: "rgba(0,0,0,0.12)",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "rgba(0,0,0,0.23)",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "primary.main",
-                    },
+          {/* Search Bar */}
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+            <TextField
+              placeholder="Search By Name"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              sx={{
+                width: "100%",
+                maxWidth: 600,
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "white",
+                  borderRadius: 2,
+                  "& fieldset": {
+                    borderColor: "rgba(0,0,0,0.12)",
                   },
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
+                  "&:hover fieldset": {
+                    borderColor: "rgba(0,0,0,0.23)",
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: "primary.main",
+                  },
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
+        </Box>
+
+        {/* Results Count */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            {filteredAgendas.length} agenda
+            {filteredAgendas.length !== 1 ? "s" : ""} found
+            {searchQuery && ` for "${searchQuery}"`}
+          </Typography>
+        </Box>
+
+        {/* Agenda Grid */}
+        <Grid container spacing={3}>
+          {filteredAgendas.map((agenda, index) => (
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
+              <AgendaCard
+                agenda={agenda}
+                index={index}
+                role={"researcher"}
+                onClick={handleResearchViewAgenda}
               />
-            </Box>
-          </Box>
+            </Grid>
+          ))}
+        </Grid>
 
-          {/* Results Count */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              {filteredAgendas.length} agenda
-              {filteredAgendas.length !== 1 ? "s" : ""} found
-              {searchQuery && ` for "${searchQuery}"`}
+        {/* No Results Message */}
+        {filteredAgendas.length === 0 && searchQuery && (
+          <Box sx={{ textAlign: "center", py: 8 }}>
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+              No agendas found
             </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Try adjusting your search terms or browse all agendas
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => setSearchQuery("")}
+              sx={{ mt: 2 }}
+            >
+              Clear Search
+            </Button>
           </Box>
-
-          {/* Agenda Grid */}
-          <Grid container spacing={3}>
-            {filteredAgendas.map((agenda, index) => (
-              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
-                <AgendaCard
-                  agenda={agenda}
-                  index={index}
-                  role={"researcher"}
-                  onClick={handleResearchViewAgenda}
-                />
-              </Grid>
-            ))}
-          </Grid>
-
-          {/* No Results Message */}
-          {filteredAgendas.length === 0 && searchQuery && (
-            <Box sx={{ textAlign: "center", py: 8 }}>
-              <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                No agendas found
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Try adjusting your search terms or browse all agendas
-              </Typography>
-              <Button
-                variant="outlined"
-                onClick={() => setSearchQuery("")}
-                sx={{ mt: 2 }}
-              >
-                Clear Search
-              </Button>
-            </Box>
-          )}
-        </Container>
-      </Box>
-    </ThemeProvider>
+        )}
+      </Container>
+    </Box>
   );
 }

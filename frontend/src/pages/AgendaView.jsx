@@ -1,14 +1,17 @@
-import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Box } from "@mui/material";
-import Sidebar from "./Agenda/MemberSidebar";
-import PromptSettings from "./Agenda/MemberPromptSettings";
+import MemberSidebar from "./Member/Agenda/MemberSidebar";
+import ResearcherSidebar from "./Researcher/Agenda/ResearcherSidebar";
+import MemberPromptSettings from "./Member/Agenda/MemberPromptSettings";
+import ResearcherPromptSettings from "./Researcher/Agenda/ResearcherPromptSettings";
+import AddUsers from "./Researcher/Agenda/AddUsers";
+import AISettings from "./Researcher/Agenda/AISettings";
 import Responses from "./Agenda/Responses";
 import ContextDocuments from "./Agenda/ContextDocuments";
 import ChatTab from "./Agenda/ChatTab";
 import MemberNavbar from "../../components/MemberNavbar";
 
-export default function MemberAgendaView({ tab }) {
+export default function MemberAgendaView({ tab, role }) {
   const { agendaId } = useParams();
   const navigate = useNavigate();
 
@@ -19,11 +22,19 @@ export default function MemberAgendaView({ tab }) {
       case "Context Documents":
         return <ContextDocuments />;
       case "Prompt Settings":
-        return <PromptSettings />;
+        return role === "member" ? (
+          <MemberPromptSettings />
+        ) : (
+          <ResearcherPromptSettings />
+        );
       case "Chat":
         return <ChatTab />;
+      case "Users":
+        return <AddUsers />;
+      case "AI Settings":
+        return <AISettings />;
       default:
-        return <ResponsesTab />;
+        return <Responses />;
     }
   };
 
@@ -36,10 +47,20 @@ export default function MemberAgendaView({ tab }) {
         navigate(`/agenda/${agendaId}/context-documents`);
         break;
       case "Prompt Settings":
-        navigate(`/agenda/${agendaId}/member-prompt-settings`);
+        navigate(
+          role === "member"
+            ? `/agenda/${agendaId}/member-prompt-settings`
+            : `/agenda/${agendaId}/researcher-prompt-settings`
+        );
         break;
       case "Chat":
         navigate(`/agenda/${agendaId}/chat`);
+        break;
+      case "Users":
+        navigate(`/agenda/${agendaId}/users`);
+        break;
+      case "AI Settings":
+        navigate(`/agenda/${agendaId}/ai-settings`);
         break;
       default:
         navigate(`/agenda/${agendaId}/responses`);

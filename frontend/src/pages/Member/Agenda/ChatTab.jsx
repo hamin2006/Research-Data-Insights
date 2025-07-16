@@ -297,8 +297,8 @@ export default function ChatTab() {
               size="small"
             >
               <MenuItem value="Meta Llama 3 8b">Meta Llama 3 8b</MenuItem>
-              <MenuItem value="GPT-4">GPT-4</MenuItem>
-              <MenuItem value="Claude 3">Claude 3</MenuItem>
+              <MenuItem value="GPT-4">Mistral Large 2402</MenuItem>
+              <MenuItem value="Claude 3">Amazon Titan Express V1</MenuItem>
             </Select>
           </FormControl>
 
