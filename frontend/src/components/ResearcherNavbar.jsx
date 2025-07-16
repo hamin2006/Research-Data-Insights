@@ -1,4 +1,13 @@
-import { AppBar, Toolbar, Typography, Button, Box } from "@mui/material";
+import { useState } from "react";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  Menu,
+  MenuItem,
+} from "@mui/material";
 import {
   Home as HomeIcon,
   Add as AddIcon,
@@ -10,6 +19,16 @@ import { useNavigate } from "react-router-dom";
 
 const ResearcherNavbar = () => {
   const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
 
   return (
     <AppBar
@@ -51,12 +70,19 @@ const ResearcherNavbar = () => {
             {
               icon: <PersonIcon />,
               label: "Username",
-              onClick: () => navigate("/researcher"),
+              onClick: handleClick,
             },
           ].map((item, index) => (
             <Button
               key={index}
               onClick={item.onClick}
+              aria-controls={
+                item.label === "Username" && open ? "basic-menu" : undefined
+              }
+              aria-haspopup={item.label === "Username"}
+              aria-expanded={
+                item.label === "Username" && open ? "true" : undefined
+              }
               sx={{
                 display: "flex",
                 flexDirection: "column",
@@ -74,6 +100,15 @@ const ResearcherNavbar = () => {
               <Typography variant="caption">{item.label}</Typography>
             </Button>
           ))}
+
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleClose}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MenuItem onClick={handleClose}>Logout</MenuItem>
+          </Menu>
         </Box>
       </Toolbar>
     </AppBar>

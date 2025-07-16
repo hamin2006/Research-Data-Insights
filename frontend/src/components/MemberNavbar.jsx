@@ -1,4 +1,13 @@
-import { AppBar, Toolbar, Typography, Button, Box } from "@mui/material";
+import { useState } from "react";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  Menu,
+  MenuItem,
+} from "@mui/material";
 import {
   Home as HomeIcon,
   Folder as FolderIcon,
@@ -9,6 +18,16 @@ import { useNavigate } from "react-router-dom";
 
 const MemberNavbar = () => {
   const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
 
   return (
     <AppBar
@@ -45,12 +64,19 @@ const MemberNavbar = () => {
             {
               icon: <PersonIcon />,
               label: "Username",
-              onClick: () => navigate("/member"),
+              onClick: handleClick,
             },
           ].map((item, index) => (
             <Button
               key={index}
               onClick={item.onClick}
+              aria-controls={
+                item.label === "Username" && open ? "basic-menu" : undefined
+              }
+              aria-haspopup={item.label === "Username"}
+              aria-expanded={
+                item.label === "Username" && open ? "true" : undefined
+              }
               sx={{
                 display: "flex",
                 flexDirection: "column",
@@ -68,6 +94,15 @@ const MemberNavbar = () => {
               <Typography variant="caption">{item.label}</Typography>
             </Button>
           ))}
+
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleClose}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MenuItem onClick={handleClose}>Logout</MenuItem>
+          </Menu>
         </Box>
       </Toolbar>
     </AppBar>
