@@ -13,6 +13,7 @@ import ResearcherHomePage from "./pages/Researcher/ResearcherHomePage";
 import ResearcherAgendaView from "./pages/Researcher/ResearcherAgendaView";
 import MemberAgendaView from "./pages/Member/MemberAgendaView";
 import AllAgendas from "./pages/Researcher/AllAgendas";
+import AgendaView from "./pages/AgendaView";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -87,32 +88,46 @@ function App() {
           <Route path="/researcher" element={<ResearcherHomePage />} />
           <Route path="/all-agendas" element={<AllAgendas />} />
           <Route
-            path="/agenda/:agendaId/users"
-            element={<ResearcherAgendaView tab={"Users"} />}
+            path="agenda/:agendaId/users"
+            element={<AgendaView tab={"Users"} role={"researcher"} />}
           />
           <Route
-            path="/agenda/:agendaId/researcher-prompt-settings"
-            element={<ResearcherAgendaView tab={"Prompt Settings"} />}
+            path="researcher/agenda/:agendaId/prompt-settings"
+            element={<AgendaView tab={"Prompt Settings"} role={"researcher"} />}
+          />
+          <Route
+            path="member/agenda/:agendaId/prompt-settings"
+            element={<AgendaView tab={"Prompt Settings"} role={"member"} />}
           />
           <Route
             path="/agenda/:agendaId/ai-settings"
-            element={<ResearcherAgendaView tab={"AI Settings"} />}
+            element={<AgendaView tab={"AI Settings"} role={"researcher"} />}
           />
           <Route
-            path="/agenda/:agendaId/responses"
-            element={<MemberAgendaView tab={"Responses"} />}
+            path="researcher/agenda/:agendaId/responses"
+            element={<AgendaView tab={"Responses"} role={"researcher"} />}
           />
           <Route
-            path="/agenda/:agendaId/context-documents"
-            element={<MemberAgendaView tab={"Context Documents"} />}
+            path="member/agenda/:agendaId/responses"
+            element={<AgendaView tab={"Responses"} role={"member"} />}
           />
           <Route
-            path="/agenda/:agendaId/member-prompt-settings"
-            element={<MemberAgendaView tab={"Prompt Settings"} />}
+            path="researcher/agenda/:agendaId/context-documents"
+            element={
+              <AgendaView tab={"Context Documents"} role={"researcher"} />
+            }
           />
           <Route
-            path="/agenda/:agendaId/chat"
-            element={<MemberAgendaView tab={"Chat"} />}
+            path="member/agenda/:agendaId/context-documents"
+            element={<AgendaView tab={"Context Documents"} role={"member"} />}
+          />
+          <Route
+            path="researcher/agenda/:agendaId/chat"
+            element={<AgendaView tab={"Chat"} role={"researcher"} />}
+          />
+          <Route
+            path="member/agenda/:agendaId/chat"
+            element={<AgendaView tab={"Chat"} role={"member"} />}
           />
         </Routes>
       </Router>

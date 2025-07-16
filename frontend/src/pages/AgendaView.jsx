@@ -6,10 +6,11 @@ import MemberPromptSettings from "./Member/Agenda/MemberPromptSettings";
 import ResearcherPromptSettings from "./Researcher/Agenda/ResearcherPromptSettings";
 import AddUsers from "./Researcher/Agenda/AddUsers";
 import AISettings from "./Researcher/Agenda/AISettings";
-import Responses from "./Agenda/Responses";
-import ContextDocuments from "./Agenda/ContextDocuments";
-import ChatTab from "./Agenda/ChatTab";
-import MemberNavbar from "../../components/MemberNavbar";
+import Responses from "./Member/Agenda/Responses";
+import ContextDocuments from "./Member/Agenda/ContextDocuments";
+import ChatTab from "./Member/Agenda/ChatTab";
+import MemberNavbar from "../components/MemberNavbar";
+import ResearcherNavbar from "../components/ResearcherNavbar";
 
 export default function MemberAgendaView({ tab, role }) {
   const { agendaId } = useParams();
@@ -41,20 +42,32 @@ export default function MemberAgendaView({ tab, role }) {
   const goToActiveTab = (newTab) => {
     switch (newTab) {
       case "Responses":
-        navigate(`/agenda/${agendaId}/responses`);
+        navigate(
+          role === "member"
+            ? `/member/agenda/${agendaId}/responses`
+            : `/researcher/agenda/${agendaId}/responses`
+        );
         break;
       case "Context Documents":
-        navigate(`/agenda/${agendaId}/context-documents`);
+        navigate(
+          role === "member"
+            ? `/member/agenda/${agendaId}/context-documents`
+            : `/researcher/agenda/${agendaId}/context-documents`
+        );
         break;
       case "Prompt Settings":
         navigate(
           role === "member"
-            ? `/agenda/${agendaId}/member-prompt-settings`
-            : `/agenda/${agendaId}/researcher-prompt-settings`
+            ? `/member/agenda/${agendaId}/prompt-settings`
+            : `/researcher/agenda/${agendaId}/prompt-settings`
         );
         break;
       case "Chat":
-        navigate(`/agenda/${agendaId}/chat`);
+        navigate(
+          role === "member"
+            ? `/member/agenda/${agendaId}/chat`
+            : `/researcher/agenda/${agendaId}/chat`
+        );
         break;
       case "Users":
         navigate(`/agenda/${agendaId}/users`);
@@ -63,10 +76,18 @@ export default function MemberAgendaView({ tab, role }) {
         navigate(`/agenda/${agendaId}/ai-settings`);
         break;
       default:
-        navigate(`/agenda/${agendaId}/responses`);
+        navigate(
+          role === "member"
+            ? `/member/agenda/${agendaId}/responses`
+            : `/researcher/agenda/${agendaId}/responses`
+        );
         break;
     }
   };
+
+  const Sidebar = role === "member" ? MemberSidebar : ResearcherSidebar;
+
+  const Navbar = role === "member" ? MemberNavbar : ResearcherNavbar;
 
   return (
     <Box
@@ -77,7 +98,7 @@ export default function MemberAgendaView({ tab, role }) {
         minWidth: "99vw",
       }}
     >
-      <MemberNavbar />
+      <Navbar />
       <Box sx={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar activeTab={tab} onTabChange={goToActiveTab} />
         <Box

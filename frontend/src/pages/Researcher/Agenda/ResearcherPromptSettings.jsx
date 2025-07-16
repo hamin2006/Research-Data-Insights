@@ -7,6 +7,10 @@ import {
   Paper,
   Checkbox,
   FormControlLabel,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Chip,
 } from "@mui/material";
 import { ExpandMore, Save } from "@mui/icons-material";
 
@@ -17,6 +21,26 @@ export default function PromptSettings() {
   const [textGenDP, setTextGenDP] = useState(false);
   const [scoringDP, setScoringDP] = useState(false);
   const [selfAggDP, setSelfAggDP] = useState(false);
+  const [promptHistory, setPromptHistory] = useState([
+    {
+      id: 1,
+      author: "Taylor Smith",
+      prompt: "First prompt",
+      date: new Date("2023-09-15"),
+    },
+    {
+      id: 2,
+      author: "Morgan Chen",
+      prompt: "Second prompt",
+      date: new Date("2024-02-03"),
+    },
+    {
+      id: 3,
+      author: "Alex Kim",
+      prompt: "Third prompt",
+      date: new Date("2024-05-21"),
+    },
+  ]);
 
   return (
     <Box>
@@ -156,6 +180,34 @@ export default function PromptSettings() {
       >
         Save Prompt Settings
       </Button>
+
+      <Paper sx={{ p: 3, my: 3, borderRadius: 2 }}>
+        <Typography variant="h6" sx={{ mb: 2, color: "#374151" }}>
+          Prompt History
+        </Typography>
+        {promptHistory.map((prompt) => (
+          <Accordion key={prompt.id} sx={{ mb: 1 }}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Typography>{prompt.date.toString()}</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <TextField
+                fullWidth
+                multiline
+                rows={10}
+                value={prompt.prompt}
+                onChange={(e) => {
+                  setPromptTemplates((prev) =>
+                    prev.map((t) =>
+                      t.id === prompt.id ? { ...t, prompt: e.target.value } : t
+                    )
+                  );
+                }}
+              />
+            </AccordionDetails>
+          </Accordion>
+        ))}
+      </Paper>
     </Box>
   );
 }
