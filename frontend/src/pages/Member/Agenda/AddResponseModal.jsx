@@ -8,16 +8,14 @@ import {
   TextField,
   Box,
   Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  styled,
 } from "@mui/material";
 import { Upload } from "@mui/icons-material";
 
 export default function AddResponseModal({ open, onClose, onAddGroup }) {
   const [fileName, setFileName] = useState("");
   const [format, setFormat] = useState("");
+  const [description, setDescription] = useState("");
 
   const handleSubmit = () => {
     if (fileName && format) {
@@ -33,6 +31,18 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
     setFormat("");
     onClose();
   };
+
+  const VisuallyHiddenInput = styled("input")({
+    clip: "rect(0 0 0 0)",
+    clipPath: "inset(50%)",
+    height: 1,
+    overflow: "hidden",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    whiteSpace: "nowrap",
+    width: 1,
+  });
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -53,35 +63,43 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
             placeholder="Enter response group name..."
           />
 
-          <FormControl fullWidth>
-            <InputLabel>Format</InputLabel>
-            <Select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              label="Format"
-            >
-              <MenuItem value="CSV">CSV</MenuItem>
-              <MenuItem value="PDF">PDF</MenuItem>
-              <MenuItem value="DOCX">DOCX</MenuItem>
-              <MenuItem value="TXT">TXT</MenuItem>
-              <MenuItem value="JSON">JSON</MenuItem>
-            </Select>
-          </FormControl>
+          <TextField
+            fullWidth
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Enter document description..."
+            multiline
+            rows={3}
+          />
 
-          <Box
+          <Button
+            component="label"
+            role={undefined}
+            startIcon={
+              <Upload sx={{ fontSize: 32, color: "#8B5CF6", mb: 1 }} />
+            }
             sx={{
               p: 3,
               border: "2px dashed #E5E7EB",
               borderRadius: 2,
               textAlign: "center",
               backgroundColor: "#F9FAFB",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
             }}
           >
-            <Upload sx={{ fontSize: 32, color: "#8B5CF6", mb: 1 }} />
             <Typography variant="body2" color="text.secondary">
               Drag and drop files here or click to browse
             </Typography>
-          </Box>
+            <VisuallyHiddenInput
+              type="file"
+              onChange={(event) => console.log(event.target.files)}
+              multiple
+            />
+          </Button>
         </Box>
       </DialogContent>
 
