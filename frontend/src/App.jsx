@@ -4,6 +4,10 @@ import {
   Routes,
   Navigate,
 } from "react-router-dom";
+// Amplify imports
+import { Amplify } from "aws-amplify";
+import { fetchAuthSession } from "aws-amplify/auth";
+
 import { useEffect, useState, createContext } from "react";
 import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import Login from "./pages/Login";
@@ -14,6 +18,24 @@ import ResearcherAgendaView from "./pages/Researcher/ResearcherAgendaView";
 import MemberAgendaView from "./pages/Member/MemberAgendaView";
 import AllAgendas from "./pages/Researcher/AllAgendas";
 import AgendaView from "./pages/AgendaView";
+
+Amplify.configure({
+  API: {
+    REST: {
+      MyApi: {
+        endpoint: import.meta.env.VITE_API_ENDPOINT,
+      },
+    },
+  },
+  Auth: {
+    Cognito: {
+      region: import.meta.env.VITE_AWS_REGION,
+      userPoolClientId: import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID,
+      userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
+      allowGuestAccess: false,
+    },
+  },
+});
 
 function App() {
   const [user, setUser] = useState(null);
@@ -60,13 +82,31 @@ function App() {
     },
   });
 
+  useEffect(() => {
+    const fetchAuthData = () => {
+      fetchAuthSession()
+        .then(({ tokens }) => {
+          if (tokens && tokens.accessToken) {
+            const group = tokens.accessToken.payload["cognito:groups"];
+            setUser(tokens.accessToken.payload);
+            setUserGroup(group || []);
+          }
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    };
+
+    fetchAuthData();
+  }, []);
+
   const getHomePage = () => {
     if (
       userGroup &&
       (userGroup.includes("admin") || userGroup.includes("techadmin"))
     ) {
       return <AdminHomePage />;
-    } else if (userGroup && userGroup.includes("User")) {
+    } else if (userGroup && userGroup.includes("member")) {
       return <MemberHomePage />;
     } else {
       return <Login />;

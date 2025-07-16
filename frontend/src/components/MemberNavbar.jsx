@@ -15,6 +15,7 @@ import {
   Person as PersonIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import {signOut} from "aws-amplify/auth";
 
 const MemberNavbar = () => {
   const navigate = useNavigate();
@@ -25,9 +26,17 @@ const MemberNavbar = () => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+
+   const handleSignOut = async (event) => {
+      event.preventDefault();
+      
+      try {
+        await signOut();
+        window.location.href = "/";
+      } catch (error) {
+        console.error("Error signing out: ", error);
+      }
+    };
 
   return (
     <AppBar
@@ -98,10 +107,10 @@ const MemberNavbar = () => {
           <Menu
             anchorEl={anchorEl}
             open={open}
-            onClose={handleClose}
+            onClose={handleSignOut}
             onClick={(e) => e.stopPropagation()}
           >
-            <MenuItem onClick={handleClose}>Logout</MenuItem>
+            <MenuItem onClick={handleSignOut}>Logout</MenuItem>
           </Menu>
         </Box>
       </Toolbar>

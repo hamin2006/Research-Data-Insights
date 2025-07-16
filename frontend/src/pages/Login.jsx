@@ -4,6 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import {
+  signIn,
+  signUp,
+  confirmSignUp,
+  resetPassword,
+  confirmResetPassword,
+  fetchAuthSession,
+  signOut
+} from "aws-amplify/auth";
+
 
 function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -19,22 +31,173 @@ function AuthPage() {
     firstName: "",
     lastName: "",
   });
+  const [passwordRequirements, setPasswordRequirements] = useState({
+  minLength: false,
+  hasLowercase: false,
+  hasUppercase: false,
+  hasNumber: false,
+  hasSpecialChar: false,
+  passwordsMatch: false,
+});
+const [isReset, setIsReset] = useState(false);
+const [step, setStep] = useState("requestReset");
+const [newPassword, setNewPassword] = useState("");
+
+
+const checkPasswordRequirements = (password, confirmPwd = formData.confirmPassword) => {
+  setPasswordRequirements({
+    minLength: password.length >= 12,
+    hasLowercase: /[a-z]/.test(password),
+    hasUppercase: /[A-Z]/.test(password),
+    hasNumber: /\d/.test(password),
+    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    passwordsMatch: password === confirmPwd && password !== '',
+  });
+};
+
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Handle form submission
-    console.log(isSignUp ? "Sign up" : "Sign in", formData);
+  const handleSubmit = async (e) => {
+    console.log("calling HandleSUbmit function");
+  e.preventDefault();
+  setLoading(true);
+  
+  try {
     if (isSignUp) {
+      // Validate passwords match
+      console.log("validating password match");
+      if (formData.password !== formData.confirmPassword) {
+        console.log("passwords do not match");
+        toast.error("Passwords do not match");
+        setLoading(false);
+        return;
+      }
+      
+      // Call AWS Amplify signUp
+      await signUp({
+        username: formData.email,
+        password: formData.password,
+        attributes: {
+          email: formData.email,
+          given_name: formData.firstName,
+          family_name: formData.lastName,
+        },
+      });
+      console.log(signUp);
+      
+      toast.success("Sign up successful. Check your email to confirm.");
       setIsConfirming(true);
+    } else {
+      const user = await signIn({ username: email, password });
+        if (user.isSignedIn) {
+          const session = await fetchAuthSession();
+          const token = session.tokens.idToken;
+          const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}member/user`, {
+            method: "POST",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_email: formData.email,
+              username: formData.email,
+              first_name: formData.firstName,
+              last_name: formData.lastName
+            })
+          });
+          const data = await response.json();
+          window.location.reload();
+        }
+    }
+  } catch (err) {
+    toast.error(err.message || "Something went wrong");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleConfirmSignUp = async (e) => {
+    e.preventDefault();
+    console.log("calling confirm sign up")
+    setLoading(true);
+    try {
+      console.log(confirmationCode);
+      await confirmSignUp({
+        username: formData.email,
+        confirmationCode,
+      });
+      toast.success("Account confirmed successfully.");
+      setIsConfirming(false); // After confirmation, switch back to sign-in
+      // Auto login after confirmation
+      const user = await signIn({ username: formData.email, password: formData.password });
+      if (user.isSignedIn) {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+        // Fetch user data after auto-login
+        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}member/user`, {
+          method: "POST",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+              user_email: formData.email,
+              username: formData.email,
+              first_name: formData.firstName,
+              last_name: formData.lastName
+            })
+        });
+        const data = await response.json();
+        window.location.reload();
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to handle sign out
+
+  const handleReset = async () => {
+    try {
+      const output = await resetPassword({ username: formData.email });
+      const step = output.nextStep.resetPasswordStep;
+      if (step === "CONFIRM_RESET_PASSWORD_WITH_CODE") {
+        toast.success("Check your email for the confirmation code.");
+        setStep("confirmReset");
+      } else if (step === "DONE") {
+        toast.success("Password reset already completed.");
+        setIsReset(false);
+        setStep("requestReset");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleConfirmReset = async (e) => {
+    e.preventDefault();
+    try {
+      await confirmResetPassword({ username: formData.email
+        , confirmationCode, newPassword });
+      toast.success("Password reset successfully.");
+      setIsReset(false);
+      setStep("requestReset");
+      setEmail("");
+      setConfirmationCode("");
+      setNewPassword("");
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
   return (
     <div className="min-h-screen w-screen bg-gray-50 flex items-center justify-center p-4">
+      <ToastContainer />
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader className="space-y-4 pb-6">
           <div className="flex items-center justify-center space-x-2">
@@ -49,7 +212,7 @@ function AuthPage() {
 
         <CardContent className="space-y-6">
           {isConfirming ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleConfirmSignUp} className="space-y-4">
               <Label
                 htmlFor="confirmationCode"
                 className="text-sm font-medium text-gray-700"
@@ -61,7 +224,7 @@ function AuthPage() {
                 type="text"
                 value={formData.confirmationCode}
                 onChange={(e) =>
-                  setConfirmationCode("firstName", e.target.value)
+                  setConfirmationCode(e.target.value)
                 }
                 className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
                 required={isConfirming}
@@ -219,6 +382,8 @@ function AuthPage() {
               >
                 {isSignUp ? "Sign Up" : "Login"}
               </Button>
+
+              
             </form>
           )}
           <div className="text-center">
