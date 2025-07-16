@@ -803,8 +803,8 @@ export class ApiGatewayStack extends cdk.Stack {
 
     const lambdaMemberFunction = new lambda.Function(this, `${id}-memberFunction`, {
       runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset("lambda/handlers"),
-      handler: "memberHandler.handler",
+      code: lambda.Code.fromAsset("lambda"),
+      handler: "handlers/memberHandler.handler",
       timeout: Duration.seconds(300),
       vpc: vpcStack.vpc,
       environment: {
