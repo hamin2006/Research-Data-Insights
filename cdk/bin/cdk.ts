@@ -1,20 +1,32 @@
 #!/usr/bin/env node
+import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { CdkStack } from '../lib/cdk-stack';
-
+import { DatabaseStack } from '../stacks/database-stack';
+import { VpcStack } from '../stacks/vpc-stack';
+import { ApiGatewayStack } from '../stacks/api-stack';
+import { DBFlowStack } from '../stacks/dbFlow-stack';
+import { Aspects } from 'aws-cdk-lib';
+import { AmplifyStack } from '../stacks/amplify-stack';
 const app = new cdk.App();
-new CdkStack(app, 'CdkStack', {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
+// Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true })); // Uncomment this line to enable AWS Solutions checks
 
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION
+};
 
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
+const StackPrefix = app.node.tryGetContext("StackPrefix");
+const environment = app.node.tryGetContext("environmentName");
+const version = app.node.tryGetContext("versionNumber");
+const githubRepo = app.node.tryGetContext("githubRepo");
 
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+
+const vpcStack = new VpcStack(app, `${StackPrefix}-VpcStack`, { env, stackPrefix: StackPrefix, });
+const dbStack = new DatabaseStack(app, `${StackPrefix}-Database`, vpcStack, { env });
+const apiStack = new ApiGatewayStack(app, `${StackPrefix}-Api`, dbStack, vpcStack, {
+  env,
 });
+const dbFlowStack = new DBFlowStack(app, `${StackPrefix}-DBFlow`, vpcStack, dbStack, apiStack, { env });
+const amplifyStack = new AmplifyStack(app, `${StackPrefix}-Amplify`, apiStack, { env });
+
+cdk.Tags.of(app).add("app", "Research-Data-Insights");
