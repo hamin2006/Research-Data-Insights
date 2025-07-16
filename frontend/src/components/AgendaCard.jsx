@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { MoreVert as MoreVertIcon } from "@mui/icons-material";
 
-function AgendaCard({ agenda, index, role }) {
+function AgendaCard({ agenda, index, role, onClick }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -33,9 +33,7 @@ function AgendaCard({ agenda, index, role }) {
         background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
         border: "1px solid rgba(0,0,0,0.08)",
       }}
-      onClick={() => {
-        alert("I was clicked by a " + role);
-      }}
+      onClick={() => onClick(agenda.id)}
     >
       <CardHeader
         title={
@@ -123,11 +121,17 @@ function AgendaCard({ agenda, index, role }) {
         onClick={(e) => e.stopPropagation()}
       >
         <MenuItem onClick={handleMenuClose}>View Details</MenuItem>
-        <MenuItem onClick={handleMenuClose}>Edit Agenda</MenuItem>
-        <MenuItem onClick={handleMenuClose}>Duplicate</MenuItem>
-        <MenuItem onClick={handleMenuClose} sx={{ color: "error.main" }}>
-          Delete
-        </MenuItem>
+        {role === "researcher" ? (
+          <>
+            <MenuItem onClick={handleMenuClose}>Edit Agenda</MenuItem>
+            <MenuItem onClick={handleMenuClose}>Duplicate</MenuItem>
+            <MenuItem onClick={handleMenuClose} sx={{ color: "error.main" }}>
+              Delete
+            </MenuItem>
+          </>
+        ) : (
+          <></>
+        )}
       </Menu>
     </Card>
   );
