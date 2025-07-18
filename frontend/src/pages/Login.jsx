@@ -91,7 +91,7 @@ const checkPasswordRequirements = (password, confirmPwd = formData.confirmPasswo
       toast.success("Sign up successful. Check your email to confirm.");
       setIsConfirming(true);
     } else {
-      const user = await signIn({ username: email, password });
+      const user = await signIn({ username: formData.email, password: formData.password });
         if (user.isSignedIn) {
           const session = await fetchAuthSession();
           const token = session.tokens.idToken;
@@ -182,12 +182,15 @@ const checkPasswordRequirements = (password, confirmPwd = formData.confirmPasswo
   const handleConfirmReset = async (e) => {
     e.preventDefault();
     try {
-      await confirmResetPassword({ username: formData.email
-        , confirmationCode, newPassword });
+      await confirmResetPassword({ 
+        username: formData.email,
+        confirmationCode, 
+        newPassword 
+      });
       toast.success("Password reset successfully.");
       setIsReset(false);
       setStep("requestReset");
-      setEmail("");
+      handleInputChange("email", "");
       setConfirmationCode("");
       setNewPassword("");
     } catch (err) {
@@ -211,7 +214,93 @@ const checkPasswordRequirements = (password, confirmPwd = formData.confirmPasswo
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {isConfirming ? (
+          {isReset ? (
+            step === "requestReset" ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
+                    required
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleReset}
+                  className="w-full h-11 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                >
+                  Reset Password
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setIsReset(false)}
+                  className="w-full text-center text-sm text-gray-500 hover:text-purple-600 transition-colors duration-200"
+                >
+                  Back to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="confirmationCode" className="text-sm font-medium text-gray-700">
+                    Confirmation Code
+                  </Label>
+                  <Input
+                    id="confirmationCode"
+                    type="text"
+                    value={confirmationCode}
+                    onChange={(e) => setConfirmationCode(e.target.value)}
+                    className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
+                    New Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="newPassword"
+                      type={showPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="h-11 bg-gray-50/50 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-200 pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="!bg-transparent !border-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                >
+                  Confirm Reset
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsReset(false);
+                    setStep("requestReset");
+                  }}
+                  className="w-full text-center text-sm text-gray-500 hover:text-purple-600 transition-colors duration-200"
+                >
+                  Back to Login
+                </button>
+              </form>
+            )
+          ) : isConfirming ? (
             <form onSubmit={handleConfirmSignUp} className="space-y-4">
               <Label
                 htmlFor="confirmationCode"
@@ -369,6 +458,7 @@ const checkPasswordRequirements = (password, confirmPwd = formData.confirmPasswo
                 <div className="flex justify-end">
                   <button
                     type="button"
+                    onClick={() => setIsReset(true)}
                     className="!bg-transparent !border-none text-sm text-gray-500 hover:text-purple-600 transition-colors duration-200"
                   >
                     Forgot password?
