@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -15,28 +15,67 @@ import {
   Person as PersonIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import {signOut} from "aws-amplify/auth";
+import {
+  signOut,
+  fetchAuthSession,
+  fetchUserAttributes,
+} from "aws-amplify/auth";
 
 const MemberNavbar = () => {
   const navigate = useNavigate();
+  const [name, setName] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
+
+  useEffect(() => {
+    const fetchName = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const userAttributes = await fetchUserAttributes();
+        const token = session.tokens.idToken;
+        const email = userAttributes.email;
+
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_API_ENDPOINT
+          }student/get_name?user_email=${encodeURIComponent(email)}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        const data = await response.json();
+        setName(data.name);
+      } catch (error) {
+        console.error("Error fetching name:", error);
+      }
+    };
+
+    fetchName();
+  }, []);
 
   const handleClick = (event) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
 
-   const handleSignOut = async (event) => {
-      event.preventDefault();
-      
-      try {
-        await signOut();
-        window.location.href = "/";
-      } catch (error) {
-        console.error("Error signing out: ", error);
-      }
-    };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSignOut = async (event) => {
+    event.preventDefault();
+
+    try {
+      await signOut();
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
 
   return (
     <AppBar
@@ -50,7 +89,7 @@ const MemberNavbar = () => {
     >
       <Toolbar sx={{ justifyContent: "space-between" }}>
         <Typography variant="h6" component="h1" sx={{ color: "text.primary" }}>
-          Research Insights Generator
+          Research Data Insights
         </Typography>
 
         <Box sx={{ display: "flex", gap: 0.5 }}>
@@ -58,7 +97,7 @@ const MemberNavbar = () => {
             {
               icon: <HomeIcon />,
               label: "Home",
-              onClick: () => navigate("/member"),
+              onClick: () => navigate("/home"),
             },
             {
               icon: <FolderIcon />,
@@ -68,7 +107,7 @@ const MemberNavbar = () => {
             {
               icon: <NotificationsIcon />,
               label: "Notifications",
-              onClick: () => navigate("/member"),
+              onClick: () => navigate("/home"),
             },
             {
               icon: <PersonIcon />,
@@ -100,14 +139,16 @@ const MemberNavbar = () => {
               }}
             >
               {item.icon}
-              <Typography variant="caption">{item.label}</Typography>
+              <Typography variant="caption">
+                {item.label === "Username" ? name : item.label}
+              </Typography>
             </Button>
           ))}
 
           <Menu
             anchorEl={anchorEl}
             open={open}
-            onClose={handleSignOut}
+            onClose={handleClose}
             onClick={(e) => e.stopPropagation()}
           >
             <MenuItem onClick={handleSignOut}>Logout</MenuItem>

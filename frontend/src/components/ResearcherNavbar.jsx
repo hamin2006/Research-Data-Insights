@@ -16,6 +16,7 @@ import {
   Person as PersonIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { signOut } from "aws-amplify/auth";
 
 const ResearcherNavbar = () => {
   const navigate = useNavigate();
@@ -28,6 +29,16 @@ const ResearcherNavbar = () => {
   };
   const handleClose = () => {
     setAnchorEl(null);
+  };
+  const handleSignOut = async (event) => {
+    event.preventDefault();
+
+    try {
+      await signOut();
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
   };
 
   return (
@@ -42,7 +53,7 @@ const ResearcherNavbar = () => {
     >
       <Toolbar sx={{ justifyContent: "space-between" }}>
         <Typography variant="h6" component="h1" sx={{ color: "text.primary" }}>
-          Research Insights Generator
+          Research Data Insights
         </Typography>
 
         <Box sx={{ display: "flex", gap: 0.5 }}>
@@ -50,12 +61,12 @@ const ResearcherNavbar = () => {
             {
               icon: <HomeIcon />,
               label: "Home",
-              onClick: () => navigate("/researcher"),
+              onClick: () => navigate("/home"),
             },
             {
               icon: <AddIcon />,
               label: "New Agenda",
-              onClick: () => navigate("/researcher"),
+              onClick: () => navigate("/home"),
             },
             {
               icon: <FolderIcon />,
@@ -65,7 +76,7 @@ const ResearcherNavbar = () => {
             {
               icon: <NotificationsIcon />,
               label: "Notifications",
-              onClick: () => navigate("/researcher"),
+              onClick: () => navigate("/home"),
             },
             {
               icon: <PersonIcon />,
@@ -107,7 +118,7 @@ const ResearcherNavbar = () => {
             onClose={handleClose}
             onClick={(e) => e.stopPropagation()}
           >
-            <MenuItem onClick={handleClose}>Logout</MenuItem>
+            <MenuItem onClick={handleSignOut}>Logout</MenuItem>
           </Menu>
         </Box>
       </Toolbar>

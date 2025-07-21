@@ -42,32 +42,16 @@ export default function MemberAgendaView({ tab, role }) {
   const goToActiveTab = (newTab) => {
     switch (newTab) {
       case "Responses":
-        navigate(
-          role === "member"
-            ? `/member/agenda/${agendaId}/responses`
-            : `/researcher/agenda/${agendaId}/responses`
-        );
+        navigate(`/agenda/${agendaId}/responses`);
         break;
       case "Context Documents":
-        navigate(
-          role === "member"
-            ? `/member/agenda/${agendaId}/context-documents`
-            : `/researcher/agenda/${agendaId}/context-documents`
-        );
+        navigate(`/agenda/${agendaId}/context-documents`);
         break;
       case "Prompt Settings":
-        navigate(
-          role === "member"
-            ? `/member/agenda/${agendaId}/prompt-settings`
-            : `/researcher/agenda/${agendaId}/prompt-settings`
-        );
+        navigate(`/agenda/${agendaId}/prompt-settings`);
         break;
       case "Chat":
-        navigate(
-          role === "member"
-            ? `/member/agenda/${agendaId}/chat`
-            : `/researcher/agenda/${agendaId}/chat`
-        );
+        navigate(`/agenda/${agendaId}/chat`);
         break;
       case "Users":
         navigate(`/agenda/${agendaId}/users`);
@@ -76,11 +60,7 @@ export default function MemberAgendaView({ tab, role }) {
         navigate(`/agenda/${agendaId}/ai-settings`);
         break;
       default:
-        navigate(
-          role === "member"
-            ? `/member/agenda/${agendaId}/responses`
-            : `/researcher/agenda/${agendaId}/responses`
-        );
+        navigate(`/agenda/${agendaId}/responses`);
         break;
     }
   };
