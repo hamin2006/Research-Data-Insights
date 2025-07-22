@@ -86,7 +86,7 @@ export default function AddUsers() {
           }}
           onClick={() => setIsModalOpen(true)}
         >
-          Add User
+          Add Collaborator
         </Button>
       </Box>
 
@@ -106,7 +106,7 @@ export default function AddUsers() {
       />
 
       <Typography variant="h6" sx={{ mb: 2, color: "#6B7280" }}>
-        User Table
+        Collaborator Table
       </Typography>
 
       <TableContainer

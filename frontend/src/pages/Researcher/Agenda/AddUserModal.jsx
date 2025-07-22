@@ -113,14 +113,14 @@ export default function AddUserModal({ open, onClose, onAddUser }) {
       <DialogTitle>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Person color="primary" />
-          <Typography variant="h6">Add New User</Typography>
+          <Typography variant="h6">Add New Collaborator</Typography>
         </Box>
       </DialogTitle>
 
       <DialogContent>
         <Box sx={{ mb: 3 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Search for students by email address or name to add them to the
+            Search for members by email address or name to add them to the
             system.
           </Typography>
 
@@ -220,7 +220,7 @@ export default function AddUserModal({ open, onClose, onAddUser }) {
         {searchEmail && searchResults.length === 0 && !isSearching && (
           <Box sx={{ textAlign: "center", py: 3 }}>
             <Typography color="text.secondary">
-              No students found matching "{searchEmail}"
+              No members found matching "{searchEmail}"
             </Typography>
           </Box>
         )}
@@ -235,7 +235,7 @@ export default function AddUserModal({ open, onClose, onAddUser }) {
             }}
           >
             <Typography variant="subtitle2" sx={{ mb: 1, color: "#8B5CF6" }}>
-              Selected User
+              Selected Member
             </Typography>
             <Typography variant="body1" sx={{ fontWeight: 600 }}>
               {selectedUser.fullName}
@@ -272,7 +272,7 @@ export default function AddUserModal({ open, onClose, onAddUser }) {
             },
           }}
         >
-          Add User
+          Add
         </Button>
       </DialogActions>
     </Dialog>

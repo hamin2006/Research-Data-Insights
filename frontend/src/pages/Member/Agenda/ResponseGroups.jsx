@@ -69,7 +69,7 @@ export default function ResponseGroups({ groupId, onBack }) {
       </Typography>
 
       <Typography variant="h6" sx={{ mb: 2, color: "#6B7280" }}>
-        User Table
+        Responses Table
       </Typography>
 
       <TableContainer

@@ -100,7 +100,7 @@ export default function ContextDocuments() {
       </Paper>
 
       <Typography variant="h6" sx={{ mb: 2, color: "#6B7280" }}>
-        User Table
+        Context Documents Table
       </Typography>
 
       <TableContainer

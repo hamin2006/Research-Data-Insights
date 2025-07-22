@@ -143,8 +143,8 @@ function App() {
             element={<AISettings messageLimit={100} />}
           />
           <Route
-            path="agenda/:agendaId/users"
-            element={<AgendaView tab={"Users"} role={getUserRole()} />}
+            path="agenda/:agendaId/collaborators"
+            element={<AgendaView tab={"Collaborators"} role={getUserRole()} />}
           />
           <Route
             path="agenda/:agendaId/prompt-settings"

@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 
 const tabs = [
-  "Users",
+  "Collaborators",
   "Responses",
   "Context Documents",
   "Prompt Settings",

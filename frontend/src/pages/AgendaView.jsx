@@ -30,7 +30,7 @@ export default function MemberAgendaView({ tab, role }) {
         );
       case "Insights Generator":
         return <ChatTab />;
-      case "Users":
+      case "Collaborators":
         return <AddUsers />;
       case "AI Settings":
         return <AISettings />;
@@ -53,8 +53,8 @@ export default function MemberAgendaView({ tab, role }) {
       case "Insights Generator":
         navigate(`/agenda/${agendaId}/chat`);
         break;
-      case "Users":
-        navigate(`/agenda/${agendaId}/users`);
+      case "Collaborators":
+        navigate(`/agenda/${agendaId}/collaborators`);
         break;
       case "AI Settings":
         navigate(`/agenda/${agendaId}/ai-settings`);

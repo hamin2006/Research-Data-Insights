@@ -95,7 +95,7 @@ export default function Responses() {
       </Paper>
 
       <Typography variant="h6" sx={{ mb: 2, color: "#6B7280" }}>
-        User Table
+        Response Group Table
       </Typography>
 
       <TableContainer

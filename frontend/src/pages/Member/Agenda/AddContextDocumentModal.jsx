@@ -8,6 +8,7 @@ import {
   TextField,
   Box,
   Typography,
+  styled,
 } from "@mui/material";
 import { Upload, Description } from "@mui/icons-material";
 
@@ -33,6 +34,18 @@ export default function AddContextDocumentModal({
     setDescription("");
     onClose();
   };
+
+  const VisuallyHiddenInput = styled("input")({
+    clip: "rect(0 0 0 0)",
+    clipPath: "inset(50%)",
+    height: 1,
+    overflow: "hidden",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    whiteSpace: "nowrap",
+    width: 1,
+  });
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -63,20 +76,33 @@ export default function AddContextDocumentModal({
             rows={3}
           />
 
-          <Box
+          <Button
+            component="label"
+            role={undefined}
+            startIcon={
+              <Upload sx={{ fontSize: 32, color: "#8B5CF6", mb: 1 }} />
+            }
             sx={{
               p: 3,
               border: "2px dashed #E5E7EB",
               borderRadius: 2,
               textAlign: "center",
               backgroundColor: "#F9FAFB",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
             }}
           >
-            <Upload sx={{ fontSize: 32, color: "#8B5CF6", mb: 1 }} />
             <Typography variant="body2" color="text.secondary">
               Drag and drop files here or click to browse
             </Typography>
-          </Box>
+            <VisuallyHiddenInput
+              type="file"
+              onChange={(event) => console.log(event.target.files)}
+              multiple
+            />
+          </Button>
         </Box>
       </DialogContent>
 
