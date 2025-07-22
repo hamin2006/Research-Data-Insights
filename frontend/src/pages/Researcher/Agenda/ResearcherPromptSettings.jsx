@@ -13,6 +13,7 @@ import {
   Chip,
 } from "@mui/material";
 import { ExpandMore, Save } from "@mui/icons-material";
+import WarningModal from "../../../components/WarningModal";
 
 export default function PromptSettings() {
   const [textGenPrompt, setTextGenPrompt] = useState("");
@@ -21,6 +22,7 @@ export default function PromptSettings() {
   const [textGenDP, setTextGenDP] = useState(false);
   const [scoringDP, setScoringDP] = useState(false);
   const [selfAggDP, setSelfAggDP] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [promptHistory, setPromptHistory] = useState([
     {
       id: 1,
@@ -41,6 +43,10 @@ export default function PromptSettings() {
       date: new Date("2024-05-21"),
     },
   ]);
+
+  const handleConfirm = () => {
+    setModalOpen(false);
+  };
 
   return (
     <Box>
@@ -168,6 +174,7 @@ export default function PromptSettings() {
       <Button
         variant="contained"
         startIcon={<Save />}
+        onClick={() => setModalOpen(true)}
         sx={{
           backgroundColor: "#8B5CF6",
           borderRadius: 2,
@@ -208,6 +215,17 @@ export default function PromptSettings() {
           </Accordion>
         ))}
       </Paper>
+
+      <WarningModal
+        open={modalOpen}
+        message={
+          "These changes may effect AI behaviour for LLM scoring and insights for yourself and all other collaborators. Are you sure you want to continue?"
+        }
+        title={"Confirm Changes"}
+        confirmText={"Confirm"}
+        onConfirm={handleConfirm}
+        onCancel={() => setModalOpen(false)}
+      />
     </Box>
   );
 }

@@ -8,13 +8,16 @@ import {
   Button,
 } from "@mui/material";
 import AdminNavbar from "./AdminNavbar";
+import WarningModal from "../../components/WarningModal";
 
 function AISettings({ messageLimit }) {
   const [tempLimit, setTempLimit] = useState(messageLimit);
   const [dailyMessageLimit, setDailyMessageLimit] = useState(100);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const handleSave = () => {
     setDailyMessageLimit(tempLimit);
+    setModalOpen(false);
   };
 
   return (
@@ -63,8 +66,9 @@ function AISettings({ messageLimit }) {
                 ]}
                 valueLabelDisplay="on"
                 sx={{
+                  color: "#8B5CF6",
                   "& .MuiSlider-valueLabelOpen": {
-                    backgroundColor: "primary.main",
+                    backgroundColor: "#8B5CF6",
                   },
                 }}
               />
@@ -83,7 +87,7 @@ function AISettings({ messageLimit }) {
               Reset
             </Button>
             <Button
-              onClick={handleSave}
+              onClick={() => setModalOpen(true)}
               variant="contained"
               sx={{
                 backgroundColor: "#8B5CF6",
@@ -95,6 +99,16 @@ function AISettings({ messageLimit }) {
           </Box>
         </Paper>
       </Container>
+      <WarningModal
+        open={modalOpen}
+        message={
+          "These changes will affect AI messaging limits for the insights generator for all collaborators. Are you sure you want to continue?"
+        }
+        title={"Confirm Changes"}
+        confirmText={"Confirm"}
+        onConfirm={handleSave}
+        onCancel={() => setModalOpen(false)}
+      />
     </Box>
   );
 }

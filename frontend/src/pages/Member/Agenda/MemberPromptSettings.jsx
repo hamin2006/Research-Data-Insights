@@ -11,11 +11,17 @@ import {
   Chip,
 } from "@mui/material";
 import { ExpandMore, Save } from "@mui/icons-material";
+import WarningModal from "../../../components/WarningModal";
 
 export default function MemberPromptSettings() {
   const [textGenPrompt, setTextGenPrompt] = useState("");
   const [scoringPrompt, setScoringPrompt] = useState("");
   const [selfAggPrompt, setSelfAggPrompt] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleConfirm = () => {
+    setModalOpen(false);
+  };
 
   return (
     <Box>
@@ -88,6 +94,7 @@ export default function MemberPromptSettings() {
       <Button
         variant="contained"
         startIcon={<Save />}
+        onClick={() => setModalOpen(true)}
         sx={{
           backgroundColor: "#8B5CF6",
           borderRadius: 2,
@@ -100,6 +107,17 @@ export default function MemberPromptSettings() {
       >
         Save Prompt Settings
       </Button>
+
+      <WarningModal
+        open={modalOpen}
+        message={
+          "These changes may effect AI behaviour for your LLM scoring and insights. Are you sure you want to continue?"
+        }
+        title={"Confirm Changes"}
+        confirmText={"Confirm"}
+        onConfirm={handleConfirm}
+        onCancel={() => setModalOpen(false)}
+      />
     </Box>
   );
 }

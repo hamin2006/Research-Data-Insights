@@ -11,7 +11,7 @@ import {
   Button,
 } from "@mui/material";
 import { Save } from "@mui/icons-material";
-
+import WarningModal from "../../../components/WarningModal";
 const availableModels = [
   { id: "meta-llama-3-8b", name: "Llama 3 8b", provider: "Meta" },
   { id: "meta-llama-3-70b", name: "Llama 3 70b", provider: "Meta" },
@@ -29,9 +29,11 @@ const availableModels = [
 ];
 
 export default function AISettings() {
+  const [modalOpen, setModalOpen] = useState(false);
   const [selectedModels, setSelectedModels] = useState([
     "meta-llama-3-8b",
     "amazon-titan-express-v1",
+    "mistral-large-2402",
   ]);
   const [hyperparameters, setHyperparameters] = useState({
     temperature: 0.7,
@@ -52,6 +54,11 @@ export default function AISettings() {
 
   const handleHyperparameterChange = (param, value) => {
     setHyperparameters((prev) => ({ ...prev, [param]: value }));
+  };
+
+  const handleConfirm = () => {
+    setModalOpen(false);
+    // Save settings logic here
   };
 
   const hyperparameterConfigs = [
@@ -194,6 +201,7 @@ export default function AISettings() {
       <Button
         variant="contained"
         startIcon={<Save />}
+        onClick={() => setModalOpen(true)}
         sx={{
           backgroundColor: "#8B5CF6",
           borderRadius: 2,
@@ -206,6 +214,17 @@ export default function AISettings() {
       >
         Save AI Settings
       </Button>
+
+      <WarningModal
+        open={modalOpen}
+        message={
+          "These changes may affect AI behavior for LLM scoring and insights for all collaborators. Are you sure you want to continue?"
+        }
+        title={"Confirm Changes"}
+        confirmText={"Confirm"}
+        onConfirm={handleConfirm}
+        onCancel={() => setModalOpen(false)}
+      />
     </Box>
   );
 }
