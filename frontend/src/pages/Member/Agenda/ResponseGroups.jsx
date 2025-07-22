@@ -99,16 +99,13 @@ export default function ResponseGroups({ groupId, onBack }) {
                 key={response.id}
                 sx={{
                   "&:hover": { backgroundColor: "#F9FAFB" },
-                  backgroundColor:
-                    response.id === 2
-                      ? "rgba(139, 92, 246, 0.1)"
-                      : "transparent",
+                  backgroundColor: "transparent",
                 }}
               >
                 <TableCell
                   sx={{
-                    color: response.id === 2 ? "#8B5CF6" : "#1F2937",
-                    fontWeight: response.id === 2 ? 600 : 400,
+                    color: "#1F2937",
+                    fontWeight: 400,
                   }}
                 >
                   {response.response}

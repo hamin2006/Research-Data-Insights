@@ -59,7 +59,7 @@ const ResearcherHomePage = () => {
   const navigate = useNavigate();
 
   const handleResearchViewAgenda = (id) => {
-    navigate(`/agenda/${id}/users`);
+    navigate(`/agenda/${id}/collaborators`);
   };
 
   return (

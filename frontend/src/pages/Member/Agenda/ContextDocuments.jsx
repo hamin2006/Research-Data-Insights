@@ -130,14 +130,13 @@ export default function ContextDocuments() {
                 key={doc.id}
                 sx={{
                   "&:hover": { backgroundColor: "#F9FAFB" },
-                  backgroundColor:
-                    doc.id === 2 ? "rgba(139, 92, 246, 0.1)" : "transparent",
+                  backgroundColor: "transparent",
                 }}
               >
                 <TableCell
                   sx={{
-                    color: doc.id === 2 ? "#8B5CF6" : "#1F2937",
-                    fontWeight: doc.id === 2 ? 600 : 400,
+                    color: "#1F2937",
+                    fontWeight: 400,
                   }}
                 >
                   {doc.fileName}

@@ -126,15 +126,14 @@ export default function Responses() {
                 sx={{
                   "&:hover": { backgroundColor: "#F9FAFB" },
                   cursor: "pointer",
-                  backgroundColor:
-                    group.id === 2 ? "rgba(139, 92, 246, 0.1)" : "transparent",
+                  backgroundColor: "transparent",
                 }}
                 onClick={() => handleGroupClick(group.id)}
               >
                 <TableCell
                   sx={{
-                    color: group.id === 2 ? "#8B5CF6" : "#1F2937",
-                    fontWeight: group.id === 2 ? 600 : 400,
+                    color: "#1F2937",
+                    fontWeight: 400,
                   }}
                 >
                   {group.fileName}
