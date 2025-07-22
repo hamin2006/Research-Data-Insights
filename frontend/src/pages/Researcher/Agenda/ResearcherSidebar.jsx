@@ -14,7 +14,7 @@ const tabs = [
   "Context Documents",
   "Prompt Settings",
   "AI Settings",
-  "Chat",
+  "Insights Generator",
 ];
 
 export default function ResearcherSidebar({ activeTab, onTabChange }) {

@@ -7,7 +7,12 @@ import {
   Typography,
   Drawer,
 } from "@mui/material";
-const tabs = ["Responses", "Context Documents", "Prompt Settings", "Chat"];
+const tabs = [
+  "Responses",
+  "Context Documents",
+  "Prompt Settings",
+  "Insights Generator",
+];
 
 export default function MemberSidebar({ activeTab, onTabChange }) {
   return (

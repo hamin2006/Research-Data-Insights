@@ -16,6 +16,7 @@ import AdminHomePage from "./pages/Admin/AdminHomePage";
 import ResearcherHomePage from "./pages/Researcher/ResearcherHomePage";
 import AllAgendas from "./pages/Researcher/AllAgendas";
 import AgendaView from "./pages/AgendaView";
+import AISettings from "./pages/Admin/AISettings";
 
 Amplify.configure({
   API: {
@@ -138,6 +139,10 @@ function App() {
           <Route path="/researcher" element={<ResearcherHomePage />} />
           <Route path="/all-agendas" element={<AllAgendas />} />
           <Route
+            path="/ai-settings"
+            element={<AISettings messageLimit={100} />}
+          />
+          <Route
             path="agenda/:agendaId/users"
             element={<AgendaView tab={"Users"} role={getUserRole()} />}
           />
@@ -163,7 +168,9 @@ function App() {
           />
           <Route
             path="agenda/:agendaId/chat"
-            element={<AgendaView tab={"Chat"} role={getUserRole()} />}
+            element={
+              <AgendaView tab={"Insights Generator"} role={getUserRole()} />
+            }
           />
         </Routes>
       </Router>

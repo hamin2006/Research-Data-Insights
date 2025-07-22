@@ -10,9 +10,8 @@ import {
 } from "@mui/material";
 import {
   Home as HomeIcon,
-  Folder as FolderIcon,
-  Notifications as NotificationsIcon,
   Person as PersonIcon,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,7 +20,7 @@ import {
   fetchUserAttributes,
 } from "aws-amplify/auth";
 
-const MemberNavbar = () => {
+const AdminNavbar = () => {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
@@ -101,14 +100,9 @@ const MemberNavbar = () => {
               onClick: () => navigate("/home"),
             },
             {
-              icon: <FolderIcon />,
-              label: "All Agendas",
-              onClick: () => navigate("/all-agendas"),
-            },
-            {
-              icon: <NotificationsIcon />,
-              label: "Notifications",
-              onClick: () => navigate("/home"),
+              icon: <SettingsIcon />,
+              label: "AI Settings",
+              onClick: () => navigate("/ai-settings"),
             },
             {
               icon: <PersonIcon />,
@@ -164,4 +158,4 @@ const MemberNavbar = () => {
   );
 };
 
-export default MemberNavbar;
+export default AdminNavbar;

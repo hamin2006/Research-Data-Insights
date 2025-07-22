@@ -28,7 +28,7 @@ export default function MemberAgendaView({ tab, role }) {
         ) : (
           <ResearcherPromptSettings />
         );
-      case "Chat":
+      case "Insights Generator":
         return <ChatTab />;
       case "Users":
         return <AddUsers />;
@@ -50,7 +50,7 @@ export default function MemberAgendaView({ tab, role }) {
       case "Prompt Settings":
         navigate(`/agenda/${agendaId}/prompt-settings`);
         break;
-      case "Chat":
+      case "Insights Generator":
         navigate(`/agenda/${agendaId}/chat`);
         break;
       case "Users":
