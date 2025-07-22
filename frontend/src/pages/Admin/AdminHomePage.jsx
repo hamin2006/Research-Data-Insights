@@ -164,7 +164,11 @@ export default function AdminHomePage() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setAddModalOpen(true)}
-              sx={{ borderRadius: 2 }}
+              sx={{
+                borderRadius: 2,
+                backgroundColor: "#8B5CF6",
+                "&:hover": { backgroundColor: "#7C3AED" },
+              }}
             >
               Add Instructor
             </Button>
@@ -266,6 +270,10 @@ export default function AdminHomePage() {
                 onClick={handleAddInstructor}
                 variant="contained"
                 disabled={!newInstructorEmail.trim()}
+                sx={{
+                  backgroundColor: "#8B5CF6",
+                  "&:hover": { backgroundColor: "#7C3AED" },
+                }}
               >
                 Add Instructor
               </Button>

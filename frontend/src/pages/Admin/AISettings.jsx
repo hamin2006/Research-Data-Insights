@@ -82,7 +82,14 @@ function AISettings({ messageLimit }) {
             >
               Reset
             </Button>
-            <Button onClick={handleSave} variant="contained">
+            <Button
+              onClick={handleSave}
+              variant="contained"
+              sx={{
+                backgroundColor: "#8B5CF6",
+                "&:hover": { backgroundColor: "#7C3AED" },
+              }}
+            >
               Save Changes
             </Button>
           </Box>
