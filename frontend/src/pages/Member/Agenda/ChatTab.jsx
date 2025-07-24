@@ -14,8 +14,21 @@ import {
   Drawer,
   Avatar,
   Fab,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemButton,
+  Button,
 } from "@mui/material";
-import { Send, Settings, Close, SmartToy, Person } from "@mui/icons-material";
+import {
+  Add,
+  Send,
+  Settings,
+  EditNote,
+  Close,
+  SmartToy,
+  Person,
+} from "@mui/icons-material";
 
 export default function ChatTab() {
   const [message, setMessage] = useState("");
@@ -29,6 +42,12 @@ export default function ChatTab() {
     },
   ]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isChatSessionsOpen, setIsChatSessionsOpen] = useState(false);
+  const [chatSessions, setChatSessions] = useState([
+    { id: 1, title: "Spatial Empathy Analysis", date: new Date() },
+    { id: 2, title: "Geography Based Empathy", date: new Date() },
+  ]);
+  const [currentSession, setCurrentSession] = useState(1);
   const [selectedModel, setSelectedModel] = useState("Meta Llama 3 8b");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
@@ -90,7 +109,13 @@ export default function ChatTab() {
   };
 
   const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleString([], {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   return (
@@ -121,15 +146,27 @@ export default function ChatTab() {
             AI-powered analysis and insights
           </Typography>
         </Box>
-        <IconButton
-          onClick={() => setIsSettingsOpen(true)}
-          sx={{
-            backgroundColor: "#F3F4F6",
-            "&:hover": { backgroundColor: "#E5E7EB" },
-          }}
-        >
-          <Settings />
-        </IconButton>
+        <Box sx={{ display: "flex", gap: 3 }}>
+          <IconButton
+            onClick={() => setIsChatSessionsOpen(true)}
+            sx={{
+              backgroundColor: "#F3F4F6",
+              "&:hover": { backgroundColor: "#E5E7EB" },
+            }}
+          >
+            <EditNote />
+          </IconButton>
+
+          <IconButton
+            onClick={() => setIsSettingsOpen(true)}
+            sx={{
+              backgroundColor: "#F3F4F6",
+              "&:hover": { backgroundColor: "#E5E7EB" },
+            }}
+          >
+            <Settings />
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Messages Area */}
@@ -273,7 +310,6 @@ export default function ChatTab() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              mb: 3,
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -283,6 +319,7 @@ export default function ChatTab() {
               <Close />
             </IconButton>
           </Box>
+          <Divider sx={{ my: 1 }} />
 
           <Typography
             variant="subtitle2"
@@ -376,6 +413,98 @@ export default function ChatTab() {
               />
             ))}
           </Box>
+        </Box>
+      </Drawer>
+
+      {/* Chat Sessions Drawer */}
+      <Drawer
+        anchor="right"
+        open={isChatSessionsOpen}
+        onClose={() => setIsChatSessionsOpen(false)}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: 350,
+            p: 0,
+          },
+        }}
+      >
+        <Box
+          sx={{
+            p: 0,
+            height: "100%",
+            overflow: "auto",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              px: 3,
+              pt: 2,
+            }}
+          >
+            <Typography variant="h6">Chat Sessions</Typography>
+            <IconButton onClick={() => setIsChatSessionsOpen(false)}>
+              <Close />
+            </IconButton>
+          </Box>
+          <Divider sx={{ mt: 1 }} />
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={() => {}}
+              startIcon={<Add />}
+              sx={{
+                backgroundColor: "transparent",
+                width: "80%",
+                mt: 2,
+                border: "1px solid black",
+                "&:hover": {
+                  backgroundColor: "rgba(139, 92, 246, 0.1)",
+                },
+                boxShadow: "none",
+                color: "black",
+              }}
+            >
+              Create New Session
+            </Button>
+          </Box>
+          <List>
+            {chatSessions.map((session) => (
+              <>
+                <ListItem key={session.id}>
+                  <ListItemButton
+                    onClick={() => {
+                      setIsChatSessionsOpen(false);
+                      setCurrentSession(session.id);
+                    }}
+                    sx={{
+                      backgroundColor:
+                        currentSession === session.id
+                          ? "rgba(139, 92, 246, 0.1)"
+                          : "transparent",
+                    }}
+                  >
+                    <ListItemText
+                      primary={session.title}
+                      secondary={formatTime(session.date)}
+                    />
+                  </ListItemButton>
+                </ListItem>
+                <Divider sx={{ mx: 2 }} />
+              </>
+            ))}
+          </List>
+          ;
         </Box>
       </Drawer>
     </Box>
