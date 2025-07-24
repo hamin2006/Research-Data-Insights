@@ -79,11 +79,12 @@ export class AmplifyStack extends cdk.Stack {
     });
 
     amplifyApp.addCustomRule({
-      source: '/<*>',
-      target: '	/index.html',
+      source: "/<*>",
+      target: "	/index.html",
       status: RedirectStatus.NOT_FOUND_REWRITE,
     });
 
     amplifyApp.addBranch("main");
+    amplifyApp.addBranch("text-gen");
   }
 }
