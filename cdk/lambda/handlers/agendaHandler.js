@@ -1,6 +1,7 @@
 // const { v4: uuidv4 } = require('uuid')
 const { initializeConnection } = require("./initializeConnection");
-let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } = process.env;
+let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
+  process.env;
 const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
@@ -11,21 +12,25 @@ let sqlConnection = global.sqlConnection;
 
 exports.handler = async (event) => {
   console.log(event);
-  const cognito_id = event.requestContext?.authorizer?.userId || event.queryStringParameters?.user_id || null;
-  
+  const cognito_id =
+    event.requestContext?.authorizer?.userId ||
+    event.queryStringParameters?.user_id ||
+    null;
+
   // Check if cognito_id exists before proceeding
   if (!cognito_id) {
     return {
       statusCode: 400,
       headers: {
-        "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+        "Access-Control-Allow-Headers":
+          "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "*",
       },
       body: JSON.stringify({ error: "Missing user ID" }),
     };
   }
-  
+
   const client = new CognitoIdentityProviderClient();
   const userAttributesCommand = new AdminGetUserCommand({
     UserPoolId: USER_POOL,
@@ -88,16 +93,12 @@ exports.handler = async (event) => {
   try {
     const pathData = event.httpMethod + " " + event.resource;
     switch (pathData) {
+      /*
       case "POST /member/user":
         if (event.body) {
           // Parse the JSON body
           const bodyParams = JSON.parse(event.body);
-          const {
-            user_email,
-            username,
-            first_name,
-            last_name
-          } = bodyParams;
+          const { user_email, username, first_name, last_name } = bodyParams;
 
           const cognitoUserId = event.requestContext.authorizer.userId;
           console.log(event);
@@ -144,9 +145,15 @@ exports.handler = async (event) => {
           response.body = JSON.stringify({ error: "User data is required" });
         }
         break;
-      
+
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
+    
+    */
+      case "GET /agenda":
+        if (event.body) {
+          //cognito_id should be a query parameter
+        }
     }
   } catch (error) {
     response.statusCode = 400;

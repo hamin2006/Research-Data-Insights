@@ -6,11 +6,7 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
 import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
-import {
-  Code,
-  LayerVersion,
-  Runtime,
-} from "aws-cdk-lib/aws-lambda";
+import { Code, LayerVersion, Runtime } from "aws-cdk-lib/aws-lambda";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { VpcStack } from "./vpc-stack";
 import { DatabaseStack } from "./database-stack";
@@ -22,9 +18,8 @@ import * as ssm from "aws-cdk-lib/aws-ssm";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as codebuild from "aws-cdk-lib/aws-codebuild";
 // At the top of your file with other imports
-import * as ecr from 'aws-cdk-lib/aws-ecr';
+import * as ecr from "aws-cdk-lib/aws-ecr";
 import { Stack, StackProps } from "aws-cdk-lib";
-
 
 export class ApiGatewayStack extends cdk.Stack {
   private readonly api: apigateway.SpecRestApi;
@@ -77,15 +72,14 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     /**
-   *
-   * Create Lambda layer for Psycopg2
-   */
+     *
+     * Create Lambda layer for Psycopg2
+     */
     const psycopgLayer = new lambda.LayerVersion(this, "psycopgLambdaLayer", {
       code: lambda.Code.fromAsset("./layers/psycopg2.zip"),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_11],
       description: "Lambda layer containing the psycopg2 Python library",
     });
-
 
     // powertoolsLayer does not follow the format of layerList
     const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
@@ -116,8 +110,7 @@ export class ApiGatewayStack extends cdk.Stack {
       },
       userVerification: {
         emailSubject: "Research data insights - Confirmation Code",
-        emailBody:
-          `
+        emailBody: `
               <html>
       <head>
         <style>
@@ -202,7 +195,7 @@ export class ApiGatewayStack extends cdk.Stack {
         requireLowercase: true,
         requireUppercase: true,
         requireDigits: true,
-        requireSymbols: true
+        requireSymbols: true,
       },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -291,7 +284,9 @@ export class ApiGatewayStack extends cdk.Stack {
         loggingLevel: apigateway.MethodLoggingLevel.ERROR,
         dataTraceEnabled: true,
         metricsEnabled: true,
-        accessLogDestination: new apigateway.LogGroupLogDestination(accessLogGroup),
+        accessLogDestination: new apigateway.LogGroupLogDestination(
+          accessLogGroup
+        ),
         accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields({
           caller: true,
           httpMethod: true,
@@ -430,11 +425,15 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Create Cognito user pool groups
-    const memberGroup = new cognito.CfnUserPoolGroup(this, `${id}-MemberGroup`, {
-      groupName: "member",
-      userPoolId: this.userPool.userPoolId,
-      roleArn: memberRole.roleArn,
-    });
+    const memberGroup = new cognito.CfnUserPoolGroup(
+      this,
+      `${id}-MemberGroup`,
+      {
+        groupName: "member",
+        userPoolId: this.userPool.userPoolId,
+        roleArn: memberRole.roleArn,
+      }
+    );
 
     const researcherGroup = new cognito.CfnUserPoolGroup(
       this,
@@ -463,25 +462,33 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Create unauthenticated role with no permissions
-    const unauthenticatedRole = new iam.Role(this, `${id}-UnauthenticatedRole`, {
-      assumedBy: new iam.FederatedPrincipal(
-        "cognito-identity.amazonaws.com",
-        {
-          StringEquals: {
-            "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
+    const unauthenticatedRole = new iam.Role(
+      this,
+      `${id}-UnauthenticatedRole`,
+      {
+        assumedBy: new iam.FederatedPrincipal(
+          "cognito-identity.amazonaws.com",
+          {
+            StringEquals: {
+              "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
+            },
+            "ForAnyValue:StringLike": {
+              "cognito-identity.amazonaws.com:amr": "unauthenticated",
+            },
           },
-          "ForAnyValue:StringLike": {
-            "cognito-identity.amazonaws.com:amr": "unauthenticated",
-          },
-        },
-        "sts:AssumeRoleWithWebIdentity"
-      ),
-    });
+          "sts:AssumeRoleWithWebIdentity"
+        ),
+      }
+    );
 
-    const lambdaRole = new iam.Role(this, `${id}-postgresLambdaRole-${this.region}`, {
-      roleName: `${id}-postgresLambdaRole-${this.region}`,
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
+    const lambdaRole = new iam.Role(
+      this,
+      `${id}-postgresLambdaRole-${this.region}`,
+      {
+        roleName: `${id}-postgresLambdaRole-${this.region}`,
+        assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      }
+    );
 
     // Grant access to Secret Manager
     lambdaRole.addToPolicy(
@@ -560,10 +567,14 @@ export class ApiGatewayStack extends cdk.Stack {
       },
     });
 
-    const coglambdaRole = new iam.Role(this, `${id}-cognitoLambdaRole-${this.region}`, {
-      roleName: `${id}-cognitoLambdaRole-${this.region}`,
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
+    const coglambdaRole = new iam.Role(
+      this,
+      `${id}-cognitoLambdaRole-${this.region}`,
+      {
+        roleName: `${id}-cognitoLambdaRole-${this.region}`,
+        assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      }
+    );
 
     // Grant access to Secret Manager
     coglambdaRole.addToPolicy(
@@ -666,21 +677,25 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    const AutoSignupLambda = new lambda.Function(this, `${id}-addMemberOnSignUp`, {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset("lambda/authorization"),
-      handler: "addMemberonSignUp.handler",
-      timeout: Duration.seconds(300),
-      environment: {
-        SM_DB_CREDENTIALS: db.secretPathTableCreator.secretName,
-        RDS_PROXY_ENDPOINT: db.rdsProxyEndpointTableCreator,
-      },
-      vpc: vpcStack.vpc,
-      functionName: `${id}-addMemberOnSignUp`,
-      memorySize: 128,
-      layers: [postgres],
-      role: coglambdaRole,
-    });
+    const AutoSignupLambda = new lambda.Function(
+      this,
+      `${id}-addMemberOnSignUp`,
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset("lambda/authorization"),
+        handler: "addMemberonSignUp.handler",
+        timeout: Duration.seconds(300),
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathTableCreator.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpointTableCreator,
+        },
+        vpc: vpcStack.vpc,
+        functionName: `${id}-addMemberOnSignUp`,
+        memorySize: 128,
+        layers: [postgres],
+        role: coglambdaRole,
+      }
+    );
 
     const adjustUserRoles = new lambda.Function(this, `${id}-adjustUserRoles`, {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -795,28 +810,32 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Change Logical ID to match the one decleared in YAML file of Open API
-    const apiGW_authorizationFunction_member = authorizationFunction_member
-      .node.defaultChild as lambda.CfnFunction;
+    const apiGW_authorizationFunction_member = authorizationFunction_member.node
+      .defaultChild as lambda.CfnFunction;
     apiGW_authorizationFunction_member.overrideLogicalId(
       "memberLambdaAuthorizer"
     );
 
-    const lambdaMemberFunction = new lambda.Function(this, `${id}-memberFunction`, {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset("lambda"),
-      handler: "handlers/memberHandler.handler",
-      timeout: Duration.seconds(300),
-      vpc: vpcStack.vpc,
-      environment: {
-        SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-        RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-        USER_POOL: this.userPool.userPoolId,
-      },
-      functionName: `${id}-memberFunction`,
-      memorySize: 512,
-      layers: [postgres],
-      role: lambdaRole,
-    });
+    const lambdaMemberFunction = new lambda.Function(
+      this,
+      `${id}-memberFunction`,
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset("lambda"),
+        handler: "handlers/memberHandler.handler",
+        timeout: Duration.seconds(300),
+        vpc: vpcStack.vpc,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          USER_POOL: this.userPool.userPoolId,
+        },
+        functionName: `${id}-memberFunction`,
+        memorySize: 512,
+        layers: [postgres],
+        role: lambdaRole,
+      }
+    );
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
     lambdaMemberFunction.addPermission("AllowApiGatewayInvoke", {
@@ -831,12 +850,47 @@ export class ApiGatewayStack extends cdk.Stack {
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/test-invoke-stage/*/*`,
     });
 
-
     const cfnLambda_member = lambdaMemberFunction.node
       .defaultChild as lambda.CfnFunction;
     cfnLambda_member.overrideLogicalId("memberFunction");
 
-   
+    const lambdaAgendaFunction = new lambda.Function(
+      this,
+      `${id}-agendaFunction`,
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset("lambda"),
+        handler: "handlers/agendaHandler.handler",
+        timeout: Duration.seconds(300),
+        vpc: vpcStack.vpc,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          USER_POOL: this.userPool.userPoolId,
+        },
+        functionName: `${id}-agendaFunction`,
+        memorySize: 512,
+        layers: [postgres],
+        role: lambdaRole,
+      }
+    );
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    lambdaAgendaFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/agenda*`,
+    });
+
+    lambdaAgendaFunction.addPermission("AllowTestInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/test-invoke-stage/*/*`,
+    });
+
+    const cfnLambda_agenda = lambdaAgendaFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnLambda_agenda.overrideLogicalId("agendaFunction");
 
     /**
      *
@@ -874,30 +928,39 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Create SSM parameter for message limit
-    const messageLimitParameter = new ssm.StringParameter(this, "MessageLimitParameter", {
-      parameterName: `/${id}/RDI/MessageLimit`,
-      description: "Parameter containing the Message Limit for the AI assistant (per day)",
-      stringValue: "Infinity",
-    });
+    const messageLimitParameter = new ssm.StringParameter(
+      this,
+      "MessageLimitParameter",
+      {
+        parameterName: `/${id}/RDI/MessageLimit`,
+        description:
+          "Parameter containing the Message Limit for the AI assistant (per day)",
+        stringValue: "Infinity",
+      }
+    );
 
     // Create the researcher function that the OpenAPI references
-    const lambdaResearcherFunction = new lambda.Function(this, `${id}-researcherFunction`, {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset("lambda/authorization"),
-      handler: "researcherFunction.handler",
-      timeout: Duration.seconds(300),
-      vpc: vpcStack.vpc,
-      environment: {
-        SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-        RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-        USER_POOL: this.userPool.userPoolId,
-        MESSAGE_LIMIT: messageLimitParameter.parameterName,
-      },
-      functionName: `${id}-researcherFunction`,
-      memorySize: 512,
-      layers: [postgres],
-      role: lambdaRole,
-    });
+    const lambdaResearcherFunction = new lambda.Function(
+      this,
+      `${id}-researcherFunction`,
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset("lambda/authorization"),
+        handler: "researcherFunction.handler",
+        timeout: Duration.seconds(300),
+        vpc: vpcStack.vpc,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          USER_POOL: this.userPool.userPoolId,
+          MESSAGE_LIMIT: messageLimitParameter.parameterName,
+        },
+        functionName: `${id}-researcherFunction`,
+        memorySize: 512,
+        layers: [postgres],
+        role: lambdaRole,
+      }
+    );
 
     // Add API Gateway permissions
     lambdaResearcherFunction.addPermission("AllowApiGatewayInvoke", {
@@ -907,7 +970,8 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     // Set the logical ID for OpenAPI reference
-    const cfnLambda_researcher = lambdaResearcherFunction.node.defaultChild as lambda.CfnFunction;
+    const cfnLambda_researcher = lambdaResearcherFunction.node
+      .defaultChild as lambda.CfnFunction;
     cfnLambda_researcher.overrideLogicalId("researcherFunction");
 
     // Waf Firewall
@@ -1013,6 +1077,5 @@ export class ApiGatewayStack extends cdk.Stack {
         webAclArn: waf.attrArn,
       }
     );
-
   }
 }

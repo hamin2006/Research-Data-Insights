@@ -67,79 +67,146 @@ components:
 
 paths:
   /member/user:
-      options:
-        summary: CORS support
-        description: |
-          Enable CORS by returning correct headers
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
         responses:
-          200:
-            $ref: "#/components/responses/Success"
-        x-amazon-apigateway-integration:
-          type: mock
-          requestTemplates:
-            application/json: |
-              {
-                "statusCode" : 200
-              }
-          responses:
-            default:
-              statusCode: "200"
-              responseParameters:
-                method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-                method.response.header.Access-Control-Allow-Methods: "'*'"
-                method.response.header.Access-Control-Allow-Origin: "'*'"
-              responseTemplates:
-                application/json: |
-                  {}
-      post:
-        tags:
-          - Member
-        summary: Create a member
-        operationId: member_user_POST
-        requestBody:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    post:
+      tags:
+        - Member
+      summary: Create a member
+      operationId: member_user_POST
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_email:
+                  type: string
+                  description: email of the user
+                username:
+                  type: string
+                  description: username of the user
+                first_name:
+                  type: string
+                  description: first name of the user
+                last_name:
+                  type: string
+                  description: last name of the user
+              required:
+                - user_email
+                - first_name
+                - last_name
+      responses:
+        "200":
+          description: Member User Created
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      security:
+        - memberAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${memberFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /agendas:
+    get:
+      description: "Get all cases associated with the user"
+      parameters:
+        - in: query
+          name: cognito_id
           required: true
+          schema:
+            type: string
+          description: The cognito ID of the user
+      responses:
+        "200":
+          description: List of the users agendas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    agenda_id:
+                      type: string
+                    agenda_name:
+                      type: string
+                    metric_name:
+                      type: string
+                    metric_description:
+                      type: string
+                    num_uploaded_responses:
+                      type: integer
+                    num_uploaded_context_documents:
+                      type: integer
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+        "400":
+          description: Bad Request
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  user_email:
+                  error:
                     type: string
-                    description: email of the user
-                  username:
+                    example: "cognito_id query parameter is required"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
                     type: string
-                    description: username of the user
-                  first_name:
-                    type: string
-                    description: first name of the user
-                  last_name:
-                    type: string
-                    description: last name of the user
-                required:
-                  - user_email
-                  - first_name
-                  - last_name
-        responses:
-          "200":
-            description: Member User Created
-            headers:
-              Access-Control-Allow-Origin:
-                schema:
-                  type: string
-          "400":
-            description: Bad Request
-          "401":
-            description: Unauthorized
-          "429":
-            description: Too Many Requests
-          "500":
-            description: Internal Server Error
-        security:
-          - memberAuthorizer: []
-        x-amazon-apigateway-integration:
-          uri:
-            Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${memberFunction.Arn}/invocations"
-          passthroughBehavior: "when_no_match"
-          httpMethod: "POST"
-          type: "aws_proxy"
-      
+                    example: "User not found"
+        "500":
+          description: Internal Server Error
+      security:
+        - studentAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
