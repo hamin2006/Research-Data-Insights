@@ -39,16 +39,13 @@ def handler(event, context):
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE EXTENSION IF NOT EXISTS "vector";
 
-            CREATE TYPE user_role AS ENUM ('admin', 'researcher', 'member');
-            CREATE TYPE upload_status AS ENUM ('uploaded', 'processing', 'failed', 'skipped');
-            CREATE TYPE agenda_status AS ENUM ('active', 'archived');
 
             CREATE TABLE IF NOT EXISTS "users" (
                 "user_id" SERIAL PRIMARY KEY,
                 "cognito_id" varchar,
                 "name" varchar,
                 "email" varchar UNIQUE NOT NULL,
-                "role" user_role DEFAULT 'member',
+                "role" varchar CHECK ("role" IN ('admin', 'researcher', 'member')) DEFAULT 'member',
                 "created_at" timestamp DEFAULT now()
             );
 
@@ -60,7 +57,6 @@ def handler(event, context):
                 "metric_description" text,
                 "num_uploaded_responses" int DEFAULT 0,
                 "num_uploaded_context_documents" int DEFAULT 0,
-                "status" agenda_status DEFAULT 'active',
                 "created_at" timestamp DEFAULT now(),
                 "updated_at" timestamp
             );
@@ -107,7 +103,6 @@ def handler(event, context):
                 "id_user_interaction" SERIAL PRIMARY KEY,
                 "user_id" int REFERENCES users(user_id),
                 "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
-                "chat_session_id" int REFERENCES chat_sessions(id_chat_session),
                 "query_text" text NOT NULL,
                 "prompt" text,
                 "response_text" text,
@@ -163,6 +158,10 @@ def handler(event, context):
                 "used_context_document_ids" text,
                 "timestamp" timestamp DEFAULT now()
             );
+
+            ALTER TABLE "research_agenda" ADD COLUMN "status" varchar CHECK ("status" IN ('active', 'archived')) DEFAULT 'active';
+            ALTER TABLE "user_interactions" ADD COLUMN "chat_session_id" int REFERENCES chat_sessions(id_chat_session);
+
         """
 
         cursor.execute(sqlTableCreation)
