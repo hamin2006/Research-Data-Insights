@@ -39,15 +39,16 @@ def handler(event, context):
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE EXTENSION IF NOT EXISTS "vector";
 
-            CREATE TYPE user_role AS ENUM ('admin', 'researcher');
+            CREATE TYPE user_role AS ENUM ('admin', 'researcher', 'member');
             CREATE TYPE upload_status AS ENUM ('uploaded', 'processing', 'failed', 'skipped');
+            CREATE TYPE agenda_status AS ENUM ('active', 'archived');
 
             CREATE TABLE IF NOT EXISTS "users" (
                 "user_id" SERIAL PRIMARY KEY,
                 "cognito_id" varchar,
                 "name" varchar,
                 "email" varchar UNIQUE NOT NULL,
-                "role" user_role,
+                "role" user_role DEFAULT 'member',
                 "created_at" timestamp DEFAULT now()
             );
 
@@ -59,8 +60,18 @@ def handler(event, context):
                 "metric_description" text,
                 "num_uploaded_responses" int DEFAULT 0,
                 "num_uploaded_context_documents" int DEFAULT 0,
+                "status" agenda_status DEFAULT 'active',
                 "created_at" timestamp DEFAULT now(),
                 "updated_at" timestamp
+            );
+
+            CREATE TABLE IF NOT EXISTS "agenda_collaborators" (
+                "id_agenda_collaborator" SERIAL PRIMARY KEY,
+                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "user_id" int REFERENCES users(user_id),
+                "added_at" timestamp DEFAULT now(),
+                "added_by" int REFERENCES users(user_id),
+                UNIQUE(research_agenda_id, user_id)
             );
 
             CREATE TABLE IF NOT EXISTS "research_observations" (
@@ -87,6 +98,7 @@ def handler(event, context):
                 "id_user_interaction" SERIAL PRIMARY KEY,
                 "user_id" int REFERENCES users(user_id),
                 "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "chat_session_id" int REFERENCES chat_sessions(id_chat_session),
                 "query_text" text NOT NULL,
                 "prompt" text,
                 "response_text" text,
@@ -141,6 +153,16 @@ def handler(event, context):
                 "used_observation_ids" text,
                 "used_context_document_ids" text,
                 "timestamp" timestamp DEFAULT now()
+            );
+            
+            CREATE TABLE IF NOT EXISTS "chat_sessions" (
+                "id_chat_session" SERIAL PRIMARY KEY,
+                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "user_id" int REFERENCES users(user_id),
+                "session_name" varchar NOT NULL,
+                "status" varchar DEFAULT 'active',
+                "created_at" timestamp DEFAULT now(),
+                "updated_at" timestamp
             );
         """
 
