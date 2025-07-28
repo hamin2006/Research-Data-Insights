@@ -94,6 +94,15 @@ def handler(event, context):
                 "updated_at" timestamp
             );
 
+            CREATE TABLE IF NOT EXISTS "chat_sessions" (
+                "id_chat_session" SERIAL PRIMARY KEY,
+                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "user_id" int REFERENCES users(user_id),
+                "session_name" varchar NOT NULL,
+                "created_at" timestamp DEFAULT now(),
+                "updated_at" timestamp
+            );
+
             CREATE TABLE IF NOT EXISTS "user_interactions" (
                 "id_user_interaction" SERIAL PRIMARY KEY,
                 "user_id" int REFERENCES users(user_id),
@@ -153,16 +162,6 @@ def handler(event, context):
                 "used_observation_ids" text,
                 "used_context_document_ids" text,
                 "timestamp" timestamp DEFAULT now()
-            );
-            
-            CREATE TABLE IF NOT EXISTS "chat_sessions" (
-                "id_chat_session" SERIAL PRIMARY KEY,
-                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
-                "user_id" int REFERENCES users(user_id),
-                "session_name" varchar NOT NULL,
-                "status" varchar DEFAULT 'active',
-                "created_at" timestamp DEFAULT now(),
-                "updated_at" timestamp
             );
         """
 
