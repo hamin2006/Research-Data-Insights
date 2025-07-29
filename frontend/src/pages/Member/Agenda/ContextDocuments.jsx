@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom"; // or however you get agenda_id
+import { fetchAuthSession } from "aws-amplify/auth";
 import {
   Box,
   Typography,
@@ -17,36 +19,39 @@ import {
 import { Upload, Delete } from "@mui/icons-material";
 import AddContextDocumentModal from "./AddContextDocumentModal";
 
-const contextDocumentsData = [
-  {
-    id: 1,
-    fileName: "Document 1",
-    description: "Spatial Empathy Description",
-    status: "Uploaded",
-  },
-  {
-    id: 2,
-    fileName: "Document 2",
-    description: "Survey Questions",
-    status: "Uploaded",
-  },
-  {
-    id: 3,
-    fileName: "Document 3",
-    description: "Survey Audio",
-    status: "Uploaded",
-  },
-  {
-    id: 4,
-    fileName: "Document 4",
-    description: "More Context",
-    status: "Processing",
-  },
-];
-
 export default function ContextDocuments() {
-  const [documents, setDocuments] = useState(contextDocumentsData);
+  const { agendaId } = useParams(); // Get agenda ID from URL
+  const [documents, setDocuments] = useState([]);
+  const [agendaName, setAgendaName] = useState("");
+  const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchContextDocuments = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
+          headers: {
+            Authorization: token,
+          }
+        });
+
+        const agendaData = await response.json();
+        setDocuments(agendaData.context_documents || []);
+        setAgendaName(agendaData.agenda_name || "");
+      } catch (error) {
+        console.error("Error fetching context documents:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (agendaId) {
+      fetchContextDocuments();
+    }
+  }, [agendaId]);
 
   const getStatusColor = (status) => {
     return status === "Uploaded" ? "success" : "warning";
@@ -65,13 +70,17 @@ export default function ContextDocuments() {
     setDocuments((prev) => [...prev, docWithId]);
   };
 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <Box>
       <Typography
         variant="h4"
         sx={{ fontWeight: 600, color: "#1F2937", mb: 3 }}
       >
-        Spatial Empathy
+        {agendaName}
       </Typography>
 
       {/* Upload Area */}
@@ -139,15 +148,15 @@ export default function ContextDocuments() {
                     fontWeight: 400,
                   }}
                 >
-                  {doc.fileName}
+                  {doc.document_name}
                 </TableCell>
                 <TableCell sx={{ color: "#6B7280" }}>
                   {doc.description}
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={doc.status}
-                    color={getStatusColor(doc.status)}
+                    label="Uploaded"
+                    color="success"
                     size="small"
                     sx={{ borderRadius: 1 }}
                   />

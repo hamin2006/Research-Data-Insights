@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -34,6 +34,7 @@ import {
 } from "@mui/icons-material";
 import CssBaseline from "@mui/material/CssBaseline";
 import AdminNavbar from "./AdminNavbar";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const initialInstructors = [
   {
@@ -74,7 +75,7 @@ const initialInstructors = [
 ];
 
 export default function AdminHomePage() {
-  const [instructors, setInstructors] = useState(initialInstructors);
+  const [researchers, setResearchers] = useState([]);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState(null);
@@ -85,47 +86,181 @@ export default function AdminHomePage() {
     severity: "success",
   });
 
+  useEffect(() => {
+  const loadResearchers = async () => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+      
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}users`, {
+        method: "GET",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (response.ok) {
+        const users = await response.json();
+        const researchers = users
+          .filter(user => user.roles && user.roles.includes('researcher'))
+          .map(user => ({
+            id: user.cognito_id,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            email: user.user_email,
+            status: "Active",
+            cognitoId: user.cognito_id
+          }));
+        setResearchers(researchers);
+      }
+    } catch (error) {
+      console.error('Error loading researchers:', error);
+    }
+  };
+  
+  loadResearchers();
+}, []);
+
   const handleRowClick = (instructor) => {
     setSelectedInstructor(instructor);
     setRemoveModalOpen(true);
   };
 
-  const handleAddInstructor = () => {
-    if (newInstructorEmail.trim()) {
+  const handleAddResearcher = async () => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+      
+      // Check if researcher already exists locally
+      const existingResearcher = researchers.find((researcher) => researcher.email === newInstructorEmail);
+      if (existingResearcher) {
+        setSnackbar({
+          open: true,
+          message: `Researcher with email ${newInstructorEmail} already exists.`,
+          severity: "error",
+        });
+        return;
+      }
+
+      // First, get all users to find the one with this email
+      const usersResponse = await fetch(`${import.meta.env.VITE_API_ENDPOINT}users`, {
+        method: "GET",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!usersResponse.ok) {
+        throw new Error(`Error fetching users: ${usersResponse.status}`);
+      }
+
+      const users = await usersResponse.json();
+      const userToPromote = users.find(user => user.user_email === newInstructorEmail.trim());
+
+      if (!userToPromote) {
+        setSnackbar({
+          open: true,
+          message: "User not found. They must sign up first.",
+          severity: "error",
+        });
+        return;
+      }
+
+      // Add researcher role using PATCH endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}user/${userToPromote.cognito_id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "add"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error Status: ${response.status}`);
+      }
+
+      const updatedUser = await response.json();
+
+      // Add to local state
       const newInstructor = {
-        id: Math.max(...instructors.map((i) => i.id)) + 1,
-        firstName: "New",
-        lastName: "Instructor",
-        email: newInstructorEmail.trim(),
+        id: userToPromote.cognito_id,
+        firstName: userToPromote.first_name,
+        lastName: userToPromote.last_name,
+        email: userToPromote.user_email,
         status: "Active",
+        cognitoId: userToPromote.cognito_id
       };
-      setInstructors([...instructors, newInstructor]);
+
+      setResearchers([...researchers, newInstructor]);
       setSnackbar({
         open: true,
-        message: "Instructor added successfully!",
+        message: `Instructor with email ${newInstructorEmail} elevated successfully!`,
         severity: "success",
       });
+
       setNewInstructorEmail("");
       setAddModalOpen(false);
+
+    } catch (error) {
+      console.error("Error elevating instructor", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to add instructor",
+        severity: "error",
+      });
     }
   };
 
-  const handleRemoveInstructor = (id) => {
-    if (selectedInstructor.id) {
-      setInstructors(
-        instructors.filter(
-          (instructor) => instructor.id !== selectedInstructor.id
+
+ const handleRemoveInstructor = async () => {
+  if (selectedInstructor?.cognitoId) {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}user/${selectedInstructor.cognitoId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "remove"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error Status: ${response.status}`);
+      }
+
+      setResearchers(
+        researchers.filter(
+          (researcher) => researcher.id !== selectedInstructor.id
         )
       );
       setSnackbar({
         open: true,
-        message: "Instructor removed successfully!",
+        message: "Researcher removed successfully!",
         severity: "success",
       });
       setRemoveModalOpen(false);
       setSelectedInstructor(null);
+
+    } catch (error) {
+      console.error("Error removing researcher", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to remove researcher",
+        severity: "error",
+      });
     }
-  };
+  }
+};
 
   const handleDailyMessageLimitChange = (value) => {
     setDailyMessageLimit(value);
@@ -170,7 +305,7 @@ export default function AdminHomePage() {
                 "&:hover": { backgroundColor: "#7C3AED" },
               }}
             >
-              Add Instructor
+              Add Researcher
             </Button>
           </Box>
 
@@ -188,10 +323,10 @@ export default function AdminHomePage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {instructors.map((instructor) => (
+                {researchers.map((researcher) => (
                   <TableRow
-                    key={instructor.id}
-                    onClick={() => handleRowClick(instructor)}
+                    key={researcher.id}
+                    onClick={() => handleRowClick(researcher)}
                     sx={{
                       cursor: "pointer",
                       "&:hover": {
@@ -199,29 +334,29 @@ export default function AdminHomePage() {
                       },
                     }}
                   >
-                    <TableCell>{instructor.firstName}</TableCell>
-                    <TableCell>{instructor.lastName}</TableCell>
+                    <TableCell>{researcher.firstName}</TableCell>
+                    <TableCell>{researcher.lastName}</TableCell>
                     <TableCell>
                       <Chip
-                        label={instructor.status}
+                        label={researcher.status}
                         size="small"
                         sx={{
                           backgroundColor:
-                            instructor.status === "Active"
+                            researcher.status === "Active"
                               ? "#dcfce7"
                               : "#fef3c7",
                           color:
-                            instructor.status === "Active"
+                            researcher.status === "Active"
                               ? "#166534"
                               : "#92400e",
                           border:
-                            instructor.status === "Active"
+                            researcher.status === "Active"
                               ? "1px solid #bbf7d0"
                               : "1px solid #fde68a",
                         }}
                       />
                     </TableCell>
-                    <TableCell>{instructor.email}</TableCell>
+                    <TableCell>{researcher.email}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -243,7 +378,7 @@ export default function AdminHomePage() {
                   alignItems: "center",
                 }}
               >
-                Add New Instructor
+                Add New Researcher
                 <IconButton onClick={() => setAddModalOpen(false)}>
                   <CloseIcon />
                 </IconButton>
@@ -267,7 +402,7 @@ export default function AdminHomePage() {
                 Cancel
               </Button>
               <Button
-                onClick={handleAddInstructor}
+                onClick={handleAddResearcher}
                 variant="contained"
                 disabled={!newInstructorEmail.trim()}
                 sx={{

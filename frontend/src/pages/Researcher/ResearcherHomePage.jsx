@@ -3,64 +3,49 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import ResearcherNavbar from "../../components/ResearcherNavbar";
 import AgendaCard from "../../components/AgendaCard";
 import { useNavigate } from "react-router-dom";
-
-const agendas = [
-  {
-    id: "spatial-empathy",
-    title: "Spatial Empathy",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "May 12, 2025 at 10:22 AM",
-  },
-  {
-    id: "signal-drift",
-    title: "Signal Drift",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "July 2, 2025 at 8:15 PM",
-  },
-  {
-    id: "interface-ecology",
-    title: "Interface Ecology",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "April 27, 2025 at 1:03 PM",
-  },
-  {
-    id: "sleep-spindles",
-    title: "Sleep Spindles",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "June 30, 2025 at 5:44 PM",
-  },
-  {
-    id: "cognitive-pathways",
-    title: "Cognitive Pathways",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "March 19, 2025 at 9:27 AM",
-  },
-  {
-    id: "emotion-circuits",
-    title: "Emotion Circuits",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "July 13, 2025 at 11:56 AM",
-  },
-];
+import { useState, useEffect } from "react";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const ResearcherHomePage = () => {
   const navigate = useNavigate();
+  const [agendas, setAgendas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAgendas = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agendas`, {
+          method: "GET",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAgendas(data);
+        }
+      } catch (error) {
+        console.error("Error fetching agendas:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAgendas();
+  }, []);
 
   const handleResearchViewAgenda = (id) => {
     navigate(`/agenda/${id}/collaborators`);
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <Box
@@ -85,12 +70,19 @@ const ResearcherHomePage = () => {
 
         <Grid container spacing={3}>
           {agendas.map((agenda, index) => (
-            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={agenda.id_research_agenda}>
               <AgendaCard
-                agenda={agenda}
+                agenda={{
+                  id: agenda.id_research_agenda,
+                  title: agenda.agenda_name,
+                  status: "Active",
+                  responses: 0,
+                  contextDocuments: 0,
+                  dateAdded: new Date(agenda.created_at || Date.now()).toLocaleString(),
+                }}
                 index={index}
                 role="researcher"
-                onClick={() => handleResearchViewAgenda(agenda.id)}
+                onClick={() => handleResearchViewAgenda(agenda.id_research_agenda)}
               />
             </Grid>
           ))}

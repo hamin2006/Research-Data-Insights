@@ -95,7 +95,7 @@ const checkPasswordRequirements = (password, confirmPwd = formData.confirmPasswo
         if (user.isSignedIn) {
           const session = await fetchAuthSession();
           const token = session.tokens.idToken;
-          const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}member/user`, {
+          const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/user`, {
             method: "POST",
             headers: {
               Authorization: token,
@@ -119,6 +119,7 @@ const checkPasswordRequirements = (password, confirmPwd = formData.confirmPasswo
   }
 };
 
+
   const handleConfirmSignUp = async (e) => {
     e.preventDefault();
     console.log("calling confirm sign up")
@@ -136,8 +137,9 @@ const checkPasswordRequirements = (password, confirmPwd = formData.confirmPasswo
       if (user.isSignedIn) {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
+        const cognito_id = token.payload.sub;
         // Fetch user data after auto-login
-        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}member/user`, {
+        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}/user?user_id=${cognito_id}`, {
           method: "POST",
           headers: {
             Authorization: token,

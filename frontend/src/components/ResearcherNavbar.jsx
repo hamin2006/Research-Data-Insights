@@ -66,7 +66,7 @@ const ResearcherNavbar = () => {
             {
               icon: <AddIcon />,
               label: "New Agenda",
-              onClick: () => navigate("/home"),
+              onClick: () => navigate("/add-agenda"),
             },
             {
               icon: <FolderIcon />,

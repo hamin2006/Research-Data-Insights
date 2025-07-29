@@ -17,6 +17,7 @@ import ResearcherHomePage from "./pages/Researcher/ResearcherHomePage";
 import AllAgendas from "./pages/Researcher/AllAgendas";
 import AgendaView from "./pages/AgendaView";
 import AISettings from "./pages/Admin/AISettings";
+import AgendaForm from "./pages/Researcher/ResearcherAddAgendaView";
 
 Amplify.configure({
   API: {
@@ -88,6 +89,7 @@ function App() {
           if (tokens && tokens.accessToken) {
             const group = tokens.accessToken.payload["cognito:groups"];
             setUser(tokens.accessToken.payload);
+            console.log(group);
             setUserGroup(group || []);
           }
         })
@@ -141,6 +143,10 @@ function App() {
           <Route
             path="/ai-settings"
             element={<AISettings messageLimit={100} />}
+          />
+          <Route
+            path="/add-agenda"
+            element={<AgendaForm />}
           />
           <Route
             path="agenda/:agendaId/collaborators"

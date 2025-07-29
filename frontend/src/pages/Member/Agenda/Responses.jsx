@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom"; // or however you get agenda_id
+import { fetchAuthSession } from "aws-amplify/auth";
 import {
   Box,
   Typography,
@@ -16,17 +18,40 @@ import { Upload, Delete } from "@mui/icons-material";
 import ResponseGroupDetail from "./ResponseGroups";
 import AddResponseModal from "./AddResponseModal";
 
-const responseGroupsData = [
-  { id: 1, fileName: "Response Group 1", status: "Uploaded", format: "CSV" },
-  { id: 2, fileName: "Response Group 2", status: "Uploaded", format: "PDF" },
-  { id: 3, fileName: "Response Group 3", status: "Uploaded", format: "CSV2" },
-  { id: 4, fileName: "Response Group 4", status: "Processing", format: "DOCX" },
-];
-
 export default function Responses() {
+  const { agendaId } = useParams(); // Get agenda ID from URL
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [responseGroups, setResponseGroups] = useState(responseGroupsData);
+  const [responseGroups, setResponseGroups] = useState([]);
+  const [agendaName, setAgendaName] = useState("");
+  const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchResponseGroups = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
+          headers: {
+            Authorization: token,
+          }
+        });
+
+        const agendaData = await response.json();
+        setResponseGroups(agendaData.research_observations || []);
+        setAgendaName(agendaData.agenda_name || "");
+      } catch (error) {
+        console.error("Error fetching response groups:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (agendaId) {
+      fetchResponseGroups();
+    }
+  }, [agendaId]);
 
   const getStatusColor = (status) => {
     return status === "Uploaded" ? "success" : "warning";
@@ -40,19 +65,64 @@ export default function Responses() {
     setSelectedGroup(null);
   };
 
-  const handleAddResponseGroup = (newGroup) => {
-    const groupWithId = {
-      id: responseGroups.length + 1,
-      ...newGroup,
-      status: "Uploaded",
-    };
-    setResponseGroups((prev) => [...prev, groupWithId]);
-  };
+  const handleAddResponseGroup = async (newGroup) => {
+  try {
+    const session = await fetchAuthSession();
+    const token = session.tokens.idToken;
+
+    if (newGroup.file) {
+      // Get presigned URL
+      const urlResponse = await fetch(`${import.meta.env.VITE_API_ENDPOINT}upload-url?file_name=${newGroup.file.name}&file_type=${newGroup.file.type}&agenda_id=${agendaId}&document_type=observation`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
+
+      const { presignedurl, key } = await urlResponse.json();
+
+      // Upload to S3
+      await fetch(presignedurl, {
+        method: "PUT",
+        body: newGroup.file,
+        headers: { "Content-Type": newGroup.file.type }
+      });
+
+      // Save to database
+      await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/research-observation`, {
+        method: "POST",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          document_name: newGroup.document_name,
+          file_path: key
+        })
+      });
+
+      // Add to local state
+      const groupWithId = {
+        id: responseGroups.length + 1,
+        document_name: newGroup.document_name,
+        file_path: key,
+        status: "Uploaded",
+      };
+      setResponseGroups((prev) => [...prev, groupWithId]);
+    }
+  } catch (error) {
+    console.error("Error adding response group:", error);
+  }
+};
+
 
   const handleDeleteGroup = (groupId, event) => {
     event.stopPropagation();
     setResponseGroups((prev) => prev.filter((group) => group.id !== groupId));
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (selectedGroup) {
     return (
@@ -66,7 +136,7 @@ export default function Responses() {
         variant="h4"
         sx={{ fontWeight: 600, color: "#1F2937", mb: 3 }}
       >
-        Spatial Empathy
+        {agendaName}
       </Typography>
 
       {/* Upload Area */}
@@ -112,9 +182,6 @@ export default function Responses() {
                 Status
               </TableCell>
               <TableCell sx={{ fontWeight: 600, color: "#374151" }}>
-                Format
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, color: "#374151" }}>
                 Actions
               </TableCell>
             </TableRow>
@@ -136,17 +203,16 @@ export default function Responses() {
                     fontWeight: 400,
                   }}
                 >
-                  {group.fileName}
+                  {group.document_name}
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={group.status}
-                    color={getStatusColor(group.status)}
+                    label="Uploaded"
+                    color="success"
                     size="small"
                     sx={{ borderRadius: 1 }}
                   />
                 </TableCell>
-                <TableCell sx={{ color: "#6B7280" }}>{group.format}</TableCell>
                 <TableCell>
                   <IconButton
                     size="small"
