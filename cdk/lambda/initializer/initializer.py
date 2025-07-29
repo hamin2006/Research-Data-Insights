@@ -39,16 +39,18 @@ def handler(event, context):
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE EXTENSION IF NOT EXISTS "vector";
 
-            CREATE TYPE user_role AS ENUM ('admin', 'researcher');
             CREATE TYPE upload_status AS ENUM ('uploaded', 'processing', 'failed', 'skipped');
 
             CREATE TABLE IF NOT EXISTS "users" (
                 "user_id" SERIAL PRIMARY KEY,
                 "cognito_id" varchar,
-                "name" varchar,
-                "email" varchar UNIQUE NOT NULL,
-                "role" user_role,
-                "created_at" timestamp DEFAULT now()
+                "user_email" varchar UNIQUE,
+                "username" varchar,
+                "first_name" varchar,
+                "last_name" varchar,
+                "time_account_created" timestamp,
+                "roles" varchar[],
+                "last_sign_in" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "research_agenda" (
