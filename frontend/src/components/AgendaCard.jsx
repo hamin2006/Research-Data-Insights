@@ -39,13 +39,6 @@ function AgendaCard({ agenda, index, role, onClick }) {
         title={
           <Box>
             <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ textTransform: "uppercase", letterSpacing: 1 }}
-            >
-              Agenda
-            </Typography>
-            <Typography
               variant="h6"
               component="h3"
               sx={{ mt: 0.5, fontWeight: 600 }}

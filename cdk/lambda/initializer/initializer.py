@@ -65,6 +65,15 @@ def handler(event, context):
                 "updated_at" timestamp
             );
 
+            CREATE TABLE IF NOT EXISTS "agenda_collaborators" (
+                "id_agenda_collaborator" SERIAL PRIMARY KEY,
+                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "user_id" int REFERENCES users(user_id),
+                "added_at" timestamp DEFAULT now(),
+                "added_by" int REFERENCES users(user_id),
+                UNIQUE(research_agenda_id, user_id)
+            );
+
             CREATE TABLE IF NOT EXISTS "research_observations" (
                 "id_research_observations" SERIAL PRIMARY KEY,
                 "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
@@ -81,6 +90,15 @@ def handler(event, context):
                 "document_name" varchar NOT NULL,
                 "file_path" varchar NOT NULL,
                 "description" text,
+                "created_at" timestamp DEFAULT now(),
+                "updated_at" timestamp
+            );
+
+            CREATE TABLE IF NOT EXISTS "chat_sessions" (
+                "id_chat_session" SERIAL PRIMARY KEY,
+                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "user_id" int REFERENCES users(user_id),
+                "session_name" varchar NOT NULL,
                 "created_at" timestamp DEFAULT now(),
                 "updated_at" timestamp
             );
@@ -144,6 +162,10 @@ def handler(event, context):
                 "used_context_document_ids" text,
                 "timestamp" timestamp DEFAULT now()
             );
+
+            ALTER TABLE "research_agenda" ADD COLUMN "status" varchar CHECK ("status" IN ('active', 'archived')) DEFAULT 'active';
+            ALTER TABLE "user_interactions" ADD COLUMN "chat_session_id" int REFERENCES chat_sessions(id_chat_session);
+
         """
 
         cursor.execute(sqlTableCreation)

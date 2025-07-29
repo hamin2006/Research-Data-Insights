@@ -2,6 +2,8 @@
 const { initializeConnection } = require("./initializeConnection");
 let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
   process.env;
+let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
+  process.env;
 const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
@@ -133,85 +135,84 @@ exports.handler = async (event) => {
       }
 
       case "POST /agenda/{agenda_id}/context-document": {
-  const agenda_id = event.pathParameters?.agenda_id;
-  const body = JSON.parse(event.body || "{}");
-  const { document_name, file_path, description } = body;
+        const agenda_id = event.pathParameters?.agenda_id;
+        const body = JSON.parse(event.body || "{}");
+        const { document_name, file_path, description } = body;
 
-  await sqlConnection`
+        await sqlConnection`
     INSERT INTO context_documents (research_agenda_id, document_name, file_path, description)
     VALUES (${agenda_id}, ${document_name}, ${file_path}, ${description})
   `;
 
-  response.body = JSON.stringify({ message: "Document saved" });
-  break;
-}
-case "POST /agenda/{agenda_id}/research-observation": {
-  const agenda_id = event.pathParameters?.agenda_id;
-  const body = JSON.parse(event.body || "{}");
-  const { document_name, file_path } = body;
+        response.body = JSON.stringify({ message: "Document saved" });
+        break;
+      }
+      case "POST /agenda/{agenda_id}/research-observation": {
+        const agenda_id = event.pathParameters?.agenda_id;
+        const body = JSON.parse(event.body || "{}");
+        const { document_name, file_path } = body;
 
-  await sqlConnection`
+        await sqlConnection`
     INSERT INTO research_observations (research_agenda_id, document_name, file_path)
     VALUES (${agenda_id}, ${document_name}, ${file_path})
   `;
 
-  response.body = JSON.stringify({ message: "Observation saved" });
-  break;
-}
+        response.body = JSON.stringify({ message: "Observation saved" });
+        break;
+      }
 
       case "GET /agenda/{agenda_id}": {
-  const cognito_id = event.requestContext?.authorizer?.userId;
-  const agenda_id = event.pathParameters?.agenda_id;
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
 
-  if (!cognito_id) {
-    throw new Error("Missing user ID");
-  }
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
 
-  if (!agenda_id) {
-    throw new Error("Missing agenda ID");
-  }
+        if (!agenda_id) {
+          throw new Error("Missing agenda ID");
+        }
 
-  // Get user_id
-  const userRow = await sqlConnection`
+        // Get user_id
+        const userRow = await sqlConnection`
     SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
   `;
 
-  if (!userRow || userRow.length === 0) {
-    throw new Error("User not found in users table");
-  }
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found in users table");
+        }
 
-  const user_id = userRow[0].user_id;
+        const user_id = userRow[0].user_id;
 
-  // Get specific agenda with related documents and observations
-  const agenda = await sqlConnection`
+        // Get specific agenda with related documents and observations
+        const agenda = await sqlConnection`
     SELECT * FROM research_agenda 
     WHERE id_research_agenda = ${agenda_id} AND user_id = ${user_id}
   `;
 
-  if (!agenda || agenda.length === 0) {
-    throw new Error("Agenda not found or access denied");
-  }
+        if (!agenda || agenda.length === 0) {
+          throw new Error("Agenda not found or access denied");
+        }
 
-  // Get context documents
-  const contextDocs = await sqlConnection`
+        // Get context documents
+        const contextDocs = await sqlConnection`
     SELECT * FROM context_documents 
     WHERE research_agenda_id = ${agenda_id}
   `;
 
-  // Get research observations
-  const observations = await sqlConnection`
+        // Get research observations
+        const observations = await sqlConnection`
     SELECT * FROM research_observations 
     WHERE research_agenda_id = ${agenda_id}
   `;
 
-  response.body = JSON.stringify({
-    ...agenda[0],
-    context_documents: contextDocs,
-    research_observations: observations
-  });
-  break;
-}
-
+        response.body = JSON.stringify({
+          ...agenda[0],
+          context_documents: contextDocs,
+          research_observations: observations,
+        });
+        break;
+      }
 
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
