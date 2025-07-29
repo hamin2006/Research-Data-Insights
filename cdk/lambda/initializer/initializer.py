@@ -40,6 +40,7 @@ def handler(event, context):
             CREATE EXTENSION IF NOT EXISTS "vector";
 
             CREATE TYPE upload_status AS ENUM ('uploaded', 'processing', 'failed', 'skipped');
+            CREATE TYPE prompt_type AS ENUM ('self_aggregation', 'general_rag', 'scoring');
 
             CREATE TABLE IF NOT EXISTS "users" (
                 "user_id" SERIAL PRIMARY KEY,
@@ -61,6 +62,16 @@ def handler(event, context):
                 "metric_description" text,
                 "num_uploaded_responses" int DEFAULT 0,
                 "num_uploaded_context_documents" int DEFAULT 0,
+                "created_at" timestamp DEFAULT now(),
+                "updated_at" timestamp
+            );
+            
+            CREATE TABLE IF NOT EXISTS "research_agenda_prompts" (
+                "id_research_agenda_prompt" SERIAL PRIMARY KEY,
+                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "prompt_type" prompt_type NOT NULL,
+                "prompt_text" text NOT NULL,
+                "is_default" boolean DEFAULT false,
                 "created_at" timestamp DEFAULT now(),
                 "updated_at" timestamp
             );
