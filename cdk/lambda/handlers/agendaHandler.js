@@ -5,6 +5,7 @@ const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
+const { initializeConnection } =  require("./initializeConnection");
 
 // SQL conneciton from global variable at lib.js
 let sqlConnection = global.sqlConnection;
