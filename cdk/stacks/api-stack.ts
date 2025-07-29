@@ -24,6 +24,9 @@ import * as codebuild from "aws-cdk-lib/aws-codebuild";
 // At the top of your file with other imports
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import { Stack, StackProps } from "aws-cdk-lib";
+import * as fs from 'fs';
+import * as yaml from 'js-yaml';
+
 
 
 export class ApiGatewayStack extends cdk.Stack {
@@ -311,6 +314,79 @@ export class ApiGatewayStack extends cdk.Stack {
         },
       },
     });
+
+    const documentsBucket = new s3.Bucket(
+      this,
+      `${id}-documents-bucket`,
+      {
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        cors: [
+          {
+            allowedHeaders: ["*"],
+            allowedMethods: [
+              s3.HttpMethods.GET,
+              s3.HttpMethods.PUT,
+              s3.HttpMethods.HEAD,
+              s3.HttpMethods.POST,
+              s3.HttpMethods.DELETE,
+            ],
+            allowedOrigins: ["*"],
+          },
+        ],
+        // When deleting the stack, the bucket will be deleted as well
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+        autoDeleteObjects: true,
+        enforceSSL: true,
+      }
+    );
+
+
+  // Create the Lambda function for generating presigned URLs
+    const generatePreSignedURL = new lambda.Function(
+      this,
+      `${id}-GeneratePreSignedURLFunction`,
+      {
+        runtime: lambda.Runtime.PYTHON_3_11,
+        code: lambda.Code.fromAsset("lambda/generatePresignedURL"),
+        handler: "generatePreSignedURL.lambda_handler",
+        timeout: Duration.seconds(300),
+        memorySize: 128,
+        environment: {
+          BUCKET: documentsBucket.bucketName,
+          REGION: this.region,
+        },
+        functionName: `${id}-GeneratePreSignedURLFunction`,
+        layers: [powertoolsLayer],
+      }
+    );
+
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnGeneratePreSignedURL = generatePreSignedURL.node
+      .defaultChild as lambda.CfnFunction;
+    cfnGeneratePreSignedURL.overrideLogicalId("GeneratePreSignedURLFunc");
+
+    // Grant the Lambda function the necessary permissions
+    documentsBucket.grantReadWrite(generatePreSignedURL);
+    generatePreSignedURL.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:PutObject", "s3:GetObject"],
+        resources: [
+          documentsBucket.bucketArn,
+          `${documentsBucket.bucketArn}/*`,
+        ],
+      })
+    );
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    generatePreSignedURL.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*`,
+    });
+
+
+
+
 
     this.stageARN_APIGW = this.api.deploymentStage.stageArn;
     this.apiGW_basedURL = this.api.urlForPath();
@@ -737,13 +813,13 @@ export class ApiGatewayStack extends cdk.Stack {
     //  *
     //  * Create Lambda for Admin Authorization endpoints
     //  */
-    const authorizationFunction = new lambda.Function(
+    const authorizationFunction_admin = new lambda.Function(
       this,
       `${id}-admin-authorization-api-gateway`,
       {
         runtime: lambda.Runtime.NODEJS_20_X,
-        code: lambda.Code.fromAsset("lambda/authorizers"),
-        handler: "adminAuthorizer.handler",
+        code: lambda.Code.fromAsset("lambda"),
+        handler: "authorizers/adminAuthorizer.handler",
         timeout: Duration.seconds(300),
         vpc: vpcStack.vpc,
         environment: {
@@ -757,14 +833,14 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
-    authorizationFunction.grantInvoke(
+    authorizationFunction_admin.grantInvoke(
       new iam.ServicePrincipal("apigateway.amazonaws.com")
     );
 
     // Change Logical ID to match the one decleared in YAML file of Open API
-    const apiGW_authorizationFunction = authorizationFunction.node
+    const apiGW_authorizationFunction_admin = authorizationFunction_admin.node
       .defaultChild as lambda.CfnFunction;
-    apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
+    apiGW_authorizationFunction_admin.overrideLogicalId("adminLambdaAuthorizer");
 
     /**
      *
@@ -775,8 +851,8 @@ export class ApiGatewayStack extends cdk.Stack {
       `${id}-member-authorization-api-gateway`,
       {
         runtime: lambda.Runtime.NODEJS_20_X,
-        code: lambda.Code.fromAsset("lambda/authorizers"),
-        handler: "memberAuthorizer.handler",
+        code: lambda.Code.fromAsset("lambda"),
+        handler: "authorizers/memberAuthorizer.handler",
         timeout: Duration.seconds(300),
         vpc: vpcStack.vpc,
         environment: {
@@ -801,10 +877,10 @@ export class ApiGatewayStack extends cdk.Stack {
       "memberLambdaAuthorizer"
     );
 
-    const lambdaMemberFunction = new lambda.Function(this, `${id}-memberFunction`, {
+    const lambdaUserFunction = new lambda.Function(this, `${id}-userFunction`, {
       runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset("lambda"),
-      handler: "handlers/memberHandler.handler",
+      handler: "handlers/userHandler.handler",
       timeout: Duration.seconds(300),
       vpc: vpcStack.vpc,
       environment: {
@@ -812,31 +888,73 @@ export class ApiGatewayStack extends cdk.Stack {
         RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
         USER_POOL: this.userPool.userPoolId,
       },
-      functionName: `${id}-memberFunction`,
+      functionName: `${id}-userFunction`,
       memorySize: 512,
       layers: [postgres],
       role: lambdaRole,
     });
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
-    lambdaMemberFunction.addPermission("AllowApiGatewayInvoke", {
+    lambdaUserFunction.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/member*`,
     });
 
-    lambdaMemberFunction.addPermission("AllowTestInvoke", {
+    lambdaUserFunction.addPermission("AllowTestInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/test-invoke-stage/*/*`,
     });
 
 
-    const cfnLambda_member = lambdaMemberFunction.node
+    const cfnLambda_user = lambdaUserFunction.node
       .defaultChild as lambda.CfnFunction;
-    cfnLambda_member.overrideLogicalId("memberFunction");
+    cfnLambda_user.overrideLogicalId("userFunction");
 
-   
+    lambdaUserFunction.addPermission("AllowAdminApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
+    });
+
+
+    const lambdaAgendaFunction = new lambda.Function(this, `${id}-agendaFunction`, {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      code: lambda.Code.fromAsset("lambda"),
+      handler: "handlers/agendaHandler.handler",
+      timeout: Duration.seconds(300),
+      vpc: vpcStack.vpc,
+      environment: {
+        SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+        RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+        USER_POOL: this.userPool.userPoolId,
+      },
+      functionName: `${id}-agendaFunction`,
+      memorySize: 512,
+      layers: [postgres],
+      role: lambdaRole,
+    });
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    lambdaAgendaFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/agenda*`,
+    });
+
+    lambdaAgendaFunction.addPermission("AllowTestInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/test-invoke-stage/*/*`,
+    });
+
+
+    const cfnLambda_agenda = lambdaAgendaFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnLambda_agenda.overrideLogicalId("agendaFunction");
+
+
 
     /**
      *
@@ -847,8 +965,8 @@ export class ApiGatewayStack extends cdk.Stack {
       `${id}-researcher-authorization-api-gateway`,
       {
         runtime: lambda.Runtime.NODEJS_20_X,
-        code: lambda.Code.fromAsset("lambda/authorizers"),
-        handler: "researcherAuthorizer.handler",
+        code: lambda.Code.fromAsset("lambda"),
+        handler: "authorizers/researcherAuthorizer.handler",
         timeout: Duration.seconds(300),
         vpc: vpcStack.vpc,
         environment: {

@@ -1,6 +1,7 @@
 // const { v4: uuidv4 } = require('uuid')
 const { initializeConnection } = require("./initializeConnection");
-let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } = process.env;
+let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
+  process.env;
 const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
@@ -11,21 +12,25 @@ let sqlConnection = global.sqlConnection;
 
 exports.handler = async (event) => {
   console.log(event);
-  const cognito_id = event.requestContext?.authorizer?.userId || event.queryStringParameters?.user_id || null;
-  
+  const cognito_id =
+    event.requestContext?.authorizer?.userId ||
+    event.queryStringParameters?.user_id ||
+    null;
+
   // Check if cognito_id exists before proceeding
   if (!cognito_id) {
     return {
       statusCode: 400,
       headers: {
-        "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+        "Access-Control-Allow-Headers":
+          "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "*",
       },
       body: JSON.stringify({ error: "Missing user ID" }),
     };
   }
-  
+
   const client = new CognitoIdentityProviderClient();
   const userAttributesCommand = new AdminGetUserCommand({
     UserPoolId: USER_POOL,
@@ -88,16 +93,11 @@ exports.handler = async (event) => {
   try {
     const pathData = event.httpMethod + " " + event.resource;
     switch (pathData) {
-      case "POST /member/user":
+      case "POST /user":
         if (event.body) {
           // Parse the JSON body
           const bodyParams = JSON.parse(event.body);
-          const {
-            user_email,
-            username,
-            first_name,
-            last_name
-          } = bodyParams;
+          const { user_email, username, first_name, last_name } = bodyParams;
 
           const cognitoUserId = event.requestContext.authorizer.userId;
           console.log(event);
@@ -127,10 +127,11 @@ exports.handler = async (event) => {
               // Insert a new user with 'member' role
               console.log("Trying to create A new User");
               const newUser = await sqlConnection`
-                    INSERT INTO "users" (cognito_id, user_email, username, first_name, last_name, time_account_created, roles, last_sign_in)
-                    VALUES (${cognitoUserId}, ${user_email}, ${username}, ${first_name}, ${last_name}, CURRENT_TIMESTAMP, ARRAY['student'], CURRENT_TIMESTAMP)
-                    RETURNING *;
-                `;
+                INSERT INTO "users" (cognito_id, user_email, username, first_name, last_name, time_account_created, roles, last_sign_in)
+                VALUES (${cognitoUserId}, ${user_email}, ${username}, ${first_name}, ${last_name}, CURRENT_TIMESTAMP, ARRAY['member'], CURRENT_TIMESTAMP)
+                RETURNING *;
+              `;
+
               response.body = JSON.stringify(newUser[0]);
               console.log(newUser);
             }
@@ -144,7 +145,105 @@ exports.handler = async (event) => {
           response.body = JSON.stringify({ error: "User data is required" });
         }
         break;
-      
+      case "GET /users":
+        try {
+          const users = await sqlConnection`
+            SELECT * FROM "users"
+            ORDER BY time_account_created DESC;
+          `;
+
+          response.body = JSON.stringify(users);
+        } catch (err) {
+          response.statusCode = 500;
+          console.log(err);
+          response.body = JSON.stringify({ error: "Error retrieving users" });
+        }
+        break;
+      case "GET /user":
+        try {
+          const user = await sqlConnection`
+          SELECT * FROM "users"
+          WHERE cognito_id = ${cognito_id};
+        `;
+
+          if (user.length === 0) {
+            response.statusCode = 404;
+            response.body = JSON.stringify({ error: "User not found" });
+          } else {
+            response.body = JSON.stringify(user[0]);
+          }
+        } catch (err) {
+          response.statusCode = 500;
+          console.log(err);
+          response.body = JSON.stringify({ error: "Error retrieving user" });
+        }
+        break;
+
+      case "PATCH /user/{cognito_id}":
+        try {
+          // Get the target user's cognito_id from path parameters
+          const targetCognitoId = event.pathParameters?.cognito_id;
+
+          if (!targetCognitoId) {
+            response.statusCode = 400;
+            response.body = JSON.stringify({
+              error: "Missing cognito_id in path",
+            });
+            break;
+          }
+
+          // Get the user to check if they exist
+          const userToUpdate = await sqlConnection`
+          SELECT * FROM "users"
+          WHERE cognito_id = ${targetCognitoId};
+        `;
+
+          if (userToUpdate.length === 0) {
+            response.statusCode = 404;
+            response.body = JSON.stringify({ error: "User not found" });
+            break;
+          }
+
+          // Parse the request body
+          const body = JSON.parse(event.body || "{}");
+          const { action } = body;
+
+          if (!action || (action !== "add" && action !== "remove")) {
+            response.statusCode = 400;
+            response.body = JSON.stringify({
+              error: "Action must be 'add' or 'remove'",
+            });
+            break;
+          }
+
+          let updatedUser;
+
+          if (action === "add") {
+            // Add researcher role if not already present
+            updatedUser = await sqlConnection`
+        UPDATE "users"
+        SET roles = array_append(CASE WHEN 'researcher' = ANY(roles) THEN roles ELSE roles || '{researcher}' END)
+        WHERE cognito_id = ${targetCognitoId}
+        RETURNING *;
+      `;
+          } else {
+            // Remove researcher role if present
+            updatedUser = await sqlConnection`
+        UPDATE "users"
+        SET roles = array_remove(roles, 'researcher')
+        WHERE cognito_id = ${targetCognitoId}
+        RETURNING *;
+      `;
+          }
+
+          response.body = JSON.stringify(updatedUser[0]);
+        } catch (err) {
+          response.statusCode = 500;
+          console.log(err);
+          response.body = JSON.stringify({ error: "Error updating user role" });
+        }
+        break;
+
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }
