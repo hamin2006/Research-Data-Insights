@@ -571,6 +571,166 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
+  /agenda/{agenda_id}/prompts:
+    parameters:
+      - name: agenda_id
+        in: path
+        required: true
+        schema:
+          type: string
+    options:
+      summary: CORS support
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Researcher
+      summary: Get prompts for agenda
+      operationId: getPrompts
+      responses:
+        "200":
+          description: List of prompts
+        "401":
+          description: Unauthorized
+      security:
+        - researcherAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${promptFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    post:
+      tags:
+        - Researcher
+      summary: Create new prompt
+      operationId: createPrompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt_type:
+                  type: string
+                  enum: [self_aggregation, general_rag, scoring]
+                prompt_text:
+                  type: string
+                is_default:
+                  type: boolean
+              required:
+                - prompt_type
+                - prompt_text
+      responses:
+        "200":
+          description: Prompt created
+        "400":
+          description: Bad Request
+      security:
+        - researcherAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${promptFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
+  /agenda/{agenda_id}/prompts/{prompt_id}:
+    parameters:
+      - name: agenda_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: prompt_id
+        in: path
+        required: true
+        schema:
+          type: string
+    options:
+      summary: CORS support
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    put:
+      tags:
+        - Researcher
+      summary: Update prompt
+      operationId: updatePrompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt_text:
+                  type: string
+                is_default:
+                  type: boolean
+      responses:
+        "200":
+          description: Prompt updated
+      security:
+        - researcherAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${promptFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    delete:
+      tags:
+        - Researcher
+      summary: Delete prompt
+      operationId: deletePrompt
+      responses:
+        "200":
+          description: Prompt deleted
+      security:
+        - researcherAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${promptFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
 
   /upload-url:
     options:
