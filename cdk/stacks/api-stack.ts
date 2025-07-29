@@ -982,6 +982,46 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     cfnLambda_agenda.overrideLogicalId("agendaFunction");
 
+    
+    const lambdaPromptFunction = new lambda.Function(
+      this,
+      `${id}-promptFunction`,
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset("lambda"),
+        handler: "handlers/promptHandler.handler",
+        timeout: Duration.seconds(300),
+        vpc: vpcStack.vpc,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          USER_POOL: this.userPool.userPoolId,
+        },
+        functionName: `${id}-promptFunction`,
+        memorySize: 512,
+        layers: [postgres],
+        role: lambdaRole,
+      }
+    );
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    lambdaPromptFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/agenda*`,
+    });
+
+    lambdaPromptFunction.addPermission("AllowTestInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/test-invoke-stage/*/*`,
+    });
+
+    const cfnLambda_prompt = lambdaPromptFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnLambda_prompt.overrideLogicalId("promptFunction");
+
+
     /**
      *
      * Create Lambda for User Authorization endpoints
