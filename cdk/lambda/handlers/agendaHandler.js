@@ -1,7 +1,4 @@
 // const { v4: uuidv4 } = require('uuid')
-const { initializeConnection } = require("./initializeConnection");
-let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
-  process.env;
 let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
   process.env;
 const {
