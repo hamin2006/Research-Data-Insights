@@ -68,8 +68,8 @@ def handler(event, context):
             );
             
             CREATE TABLE IF NOT EXISTS "research_agenda_prompts" (
-                "id_research_agenda_prompt" SERIAL PRIMARY KEY,
-                "research_agenda_id" int REFERENCES research_agenda(id_research_agenda),
+                "id_research_agenda_prompt" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+                "research_agenda_id" uuid REFERENCES research_agenda(id_research_agenda),
                 "prompt_type" prompt_type NOT NULL,
                 "prompt_text" text NOT NULL,
                 "is_default" boolean DEFAULT false,
