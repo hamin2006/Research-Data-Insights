@@ -121,6 +121,8 @@ def get_example_table_sql():
     """
 
 
+
+
 def get_all_migrations():
     """Return a dictionary of all migrations in order they should be applied"""
     # Initialize with the core schema if not already initialized

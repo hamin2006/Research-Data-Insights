@@ -5,7 +5,7 @@ const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
-const { initializeConnection } =  require("./initializeConnection");
+const { initializeConnection } = require("./initializeConnection");
 
 // SQL conneciton from global variable at lib.js
 let sqlConnection = global.sqlConnection;
@@ -135,11 +135,11 @@ exports.handler = async (event) => {
       case "POST /agenda/{agenda_id}/context-document": {
         const agenda_id = event.pathParameters?.agenda_id;
         const body = JSON.parse(event.body || "{}");
-        const { document_name, file_path, description } = body;
+        const { document_name, file_path, description, upload_status } = body;
 
         await sqlConnection`
-    INSERT INTO context_documents (research_agenda_id, document_name, file_path, description)
-    VALUES (${agenda_id}, ${document_name}, ${file_path}, ${description})
+    INSERT INTO context_documents (research_agenda_id, document_name, file_path, description, upload_status)
+    VALUES (${agenda_id}, ${document_name}, ${file_path}, ${description}, ${upload_status})
   `;
 
         response.body = JSON.stringify({ message: "Document saved" });
