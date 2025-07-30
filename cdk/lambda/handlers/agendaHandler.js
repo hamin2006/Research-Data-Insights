@@ -212,6 +212,82 @@ exports.handler = async (event) => {
         break;
       }
 
+      case "GET /agenda/{agenda_id}/collaborators": {
+  const cognito_id = event.requestContext?.authorizer?.userId;
+  const agenda_id = event.pathParameters?.agenda_id;
+
+  if (!cognito_id) {
+    throw new Error("Missing user ID");
+  }
+
+  const collaborators = await sqlConnection`
+    SELECT ac.*, u.first_name, u.last_name, u.user_email, u.roles,
+           added_by_user.first_name as added_by_first_name, 
+           added_by_user.last_name as added_by_last_name
+    FROM agenda_collaborators ac
+    JOIN users u ON ac.user_id = u.user_id
+    LEFT JOIN users added_by_user ON ac.added_by = added_by_user.user_id
+    WHERE ac.research_agenda_id = ${agenda_id}
+    ORDER BY ac.added_at DESC
+  `;
+
+  response.body = JSON.stringify(collaborators);
+  break;
+}
+
+case "POST /agenda/{agenda_id}/collaborators": {
+  const cognito_id = event.requestContext?.authorizer?.userId;
+  const agenda_id = event.pathParameters?.agenda_id;
+  const body = JSON.parse(event.body || "{}");
+  const { user_email } = body;
+
+  if (!cognito_id || !user_email) {
+    throw new Error("Missing required fields");
+  }
+
+  // Get the user who is adding the collaborator
+  const adderRow = await sqlConnection`
+    SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+  `;
+
+  // Get the user to be added as collaborator
+  const userRow = await sqlConnection`
+    SELECT user_id FROM users WHERE user_email = ${user_email}
+  `;
+
+  if (!userRow || userRow.length === 0) {
+    throw new Error("User not found");
+  }
+
+  const result = await sqlConnection`
+    INSERT INTO agenda_collaborators (research_agenda_id, user_id, added_by)
+    VALUES (${agenda_id}, ${userRow[0].user_id}, ${adderRow[0].user_id})
+    RETURNING *
+  `;
+
+  response.body = JSON.stringify(result[0]);
+  break;
+}
+
+case "DELETE /agenda/{agenda_id}/collaborators/{collaborator_id}": {
+  const cognito_id = event.requestContext?.authorizer?.userId;
+  const agenda_id = event.pathParameters?.agenda_id;
+  const collaborator_id = event.pathParameters?.collaborator_id;
+
+  if (!cognito_id) {
+    throw new Error("Missing user ID");
+  }
+
+  await sqlConnection`
+    DELETE FROM agenda_collaborators 
+    WHERE id_agenda_collaborator = ${collaborator_id} AND research_agenda_id = ${agenda_id}
+  `;
+
+  response.body = JSON.stringify({ message: "Collaborator removed successfully" });
+  break;
+}
+
+
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }
