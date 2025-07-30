@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { fetchAuthSession } from "aws-amplify/auth";
 import {
   Box,
   Typography,
@@ -16,37 +18,103 @@ import { ExpandMore, Save } from "@mui/icons-material";
 import WarningModal from "../../../components/WarningModal";
 
 export default function PromptSettings() {
-  const [textGenPrompt, setTextGenPrompt] = useState("");
-  const [scoringPrompt, setScoringPrompt] = useState("");
-  const [selfAggPrompt, setSelfAggPrompt] = useState("");
-  const [textGenDP, setTextGenDP] = useState(false);
-  const [scoringDP, setScoringDP] = useState(false);
-  const [selfAggDP, setSelfAggDP] = useState(false);
+  const { agendaId } = useParams();
+  const [prompts, setPrompts] = useState({
+    general_rag: { text: "", isDefault: false, id: null },
+    scoring: { text: "", isDefault: false, id: null },
+    self_aggregation: { text: "", isDefault: false, id: null }
+  });
+  const [promptHistory, setPromptHistory] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [promptHistory, setPromptHistory] = useState([
-    {
-      id: 1,
-      author: "Taylor Smith",
-      prompt: "First prompt",
-      date: new Date("2023-09-15"),
-    },
-    {
-      id: 2,
-      author: "Morgan Chen",
-      prompt: "Second prompt",
-      date: new Date("2024-02-03"),
-    },
-    {
-      id: 3,
-      author: "Alex Kim",
-      prompt: "Third prompt",
-      date: new Date("2024-05-21"),
-    },
-  ]);
+  const [loading, setLoading] = useState(true);
 
-  const handleConfirm = () => {
+  useEffect(() => {
+    fetchPrompts();
+  }, [agendaId]);
+
+  const fetchPrompts = async () => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/prompts`, {
+        headers: {
+          Authorization: token,
+        }
+      });
+
+      const promptsData = await response.json();
+      
+      // Group prompts by type
+      const groupedPrompts = {
+        general_rag: { text: "", isDefault: false, id: null },
+        scoring: { text: "", isDefault: false, id: null },
+        self_aggregation: { text: "", isDefault: false, id: null }
+      };
+
+      promptsData.forEach(prompt => {
+        if (prompt.is_default || !groupedPrompts[prompt.prompt_type].text) {
+          groupedPrompts[prompt.prompt_type] = {
+            text: prompt.prompt_text,
+            isDefault: prompt.is_default,
+            id: prompt.id_research_agenda_prompt
+          };
+        }
+      });
+
+      setPrompts(groupedPrompts);
+      setPromptHistory(promptsData);
+    } catch (error) {
+      console.error("Error fetching prompts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const savePrompt = async (promptType, promptText, isDefault) => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/prompts`, {
+        method: "POST",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt_type: promptType,
+          prompt_text: promptText,
+          is_default: isDefault
+        })
+      });
+
+      if (response.ok) {
+        fetchPrompts(); // Refresh prompts
+      }
+    } catch (error) {
+      console.error("Error saving prompt:", error);
+    }
+  };
+
+  const handleConfirm = async () => {
+    // Save all prompts
+    await Promise.all([
+      savePrompt("general_rag", prompts.general_rag.text, prompts.general_rag.isDefault),
+      savePrompt("scoring", prompts.scoring.text, prompts.scoring.isDefault),
+      savePrompt("self_aggregation", prompts.self_aggregation.text, prompts.self_aggregation.isDefault)
+    ]);
     setModalOpen(false);
   };
+
+  const updatePrompt = (type, field, value) => {
+    setPrompts(prev => ({
+      ...prev,
+      [type]: { ...prev[type], [field]: value }
+    }));
+  };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <Box>
@@ -66,30 +134,24 @@ export default function PromptSettings() {
           Changing it will change its behaviour.
         </Typography>
         <FormControlLabel
-          key={"generalLLMPrompt"}
           control={
             <Checkbox
-              checked={textGenDP}
-              onChange={() => {
-                setTextGenDP(!textGenDP);
-              }}
+              checked={prompts.general_rag.isDefault}
+              onChange={(e) => updatePrompt("general_rag", "isDefault", e.target.checked)}
               sx={{
                 color: "#8B5CF6",
                 "&.Mui-checked": { color: "#8B5CF6" },
               }}
             />
           }
-          label={
-            <Typography variant="body1">{"Set Default Prompt"}</Typography>
-          }
+          label={<Typography variant="body1">Set Default Prompt</Typography>}
         />
-
         <TextField
           fullWidth
           multiline
           rows={20}
-          value={textGenPrompt}
-          onChange={(e) => setTextGenPrompt(e.target.value)}
+          value={prompts.general_rag.text}
+          onChange={(e) => updatePrompt("general_rag", "text", e.target.value)}
           placeholder="Enter your system prompt here..."
           sx={{ mb: 2 }}
         />
@@ -101,33 +163,27 @@ export default function PromptSettings() {
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           This controls the instructions given to the each of the AI scoring
-          assistants used as context for aggregated scoring. Changing it will
-          change its behaviour.
+          assistants used as context for aggregated scoring.
         </Typography>
         <FormControlLabel
-          key={"scoringPrompt"}
           control={
             <Checkbox
-              checked={scoringDP}
-              onChange={() => {
-                setScoringDP(!scoringDP);
-              }}
+              checked={prompts.scoring.isDefault}
+              onChange={(e) => updatePrompt("scoring", "isDefault", e.target.checked)}
               sx={{
                 color: "#8B5CF6",
                 "&.Mui-checked": { color: "#8B5CF6" },
               }}
             />
           }
-          label={
-            <Typography variant="body1">{"Set Default Prompt"}</Typography>
-          }
+          label={<Typography variant="body1">Set Default Prompt</Typography>}
         />
         <TextField
           fullWidth
           multiline
           rows={20}
-          value={scoringPrompt}
-          onChange={(e) => setScoringPrompt(e.target.value)}
+          value={prompts.scoring.text}
+          onChange={(e) => updatePrompt("scoring", "text", e.target.value)}
           placeholder="Enter your system prompt here..."
           sx={{ mb: 2 }}
         />
@@ -139,33 +195,27 @@ export default function PromptSettings() {
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           This controls the instructions given to the final AI assistant which
-          will dictate how aggregated scoring will take place. Changing it will
-          change its behaviour.
+          will dictate how aggregated scoring will take place.
         </Typography>
         <FormControlLabel
-          key={"selfAggPrompt"}
           control={
             <Checkbox
-              checked={selfAggDP}
-              onChange={() => {
-                setSelfAggDP(!selfAggDP);
-              }}
+              checked={prompts.self_aggregation.isDefault}
+              onChange={(e) => updatePrompt("self_aggregation", "isDefault", e.target.checked)}
               sx={{
                 color: "#8B5CF6",
                 "&.Mui-checked": { color: "#8B5CF6" },
               }}
             />
           }
-          label={
-            <Typography variant="body1">{"Set Default Prompt"}</Typography>
-          }
+          label={<Typography variant="body1">Set Default Prompt</Typography>}
         />
         <TextField
           fullWidth
           multiline
           rows={20}
-          value={selfAggPrompt}
-          onChange={(e) => setSelfAggPrompt(e.target.value)}
+          value={prompts.self_aggregation.text}
+          onChange={(e) => updatePrompt("self_aggregation", "text", e.target.value)}
           placeholder="Enter your system prompt here..."
           sx={{ mb: 2 }}
         />
@@ -193,23 +243,21 @@ export default function PromptSettings() {
           Prompt History
         </Typography>
         {promptHistory.map((prompt) => (
-          <Accordion key={prompt.id} sx={{ mb: 1 }}>
+          <Accordion key={prompt.id_research_agenda_prompt} sx={{ mb: 1 }}>
             <AccordionSummary expandIcon={<ExpandMore />}>
-              <Typography>{prompt.date.toString()}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography>{new Date(prompt.created_at).toLocaleDateString()}</Typography>
+                <Chip label={prompt.prompt_type} size="small" />
+                {prompt.is_default && <Chip label="Default" color="primary" size="small" />}
+              </Box>
             </AccordionSummary>
             <AccordionDetails>
               <TextField
                 fullWidth
                 multiline
                 rows={10}
-                value={prompt.prompt}
-                onChange={(e) => {
-                  setPromptTemplates((prev) =>
-                    prev.map((t) =>
-                      t.id === prompt.id ? { ...t, prompt: e.target.value } : t
-                    )
-                  );
-                }}
+                value={prompt.prompt_text}
+                InputProps={{ readOnly: true }}
               />
             </AccordionDetails>
           </Accordion>
