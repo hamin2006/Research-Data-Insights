@@ -17,13 +17,16 @@ const ResearcherHomePage = () => {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
 
-        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agendas`, {
-          method: "GET",
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agendas`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (response.ok) {
           const data = await response.json();
@@ -42,10 +45,6 @@ const ResearcherHomePage = () => {
   const handleResearchViewAgenda = (id) => {
     navigate(`/agenda/${id}/collaborators`);
   };
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <Box
@@ -69,23 +68,34 @@ const ResearcherHomePage = () => {
         </Box>
 
         <Grid container spacing={3}>
-          {agendas.map((agenda, index) => (
-            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={agenda.id_research_agenda}>
-              <AgendaCard
-                agenda={{
-                  id: agenda.id_research_agenda,
-                  title: agenda.agenda_name,
-                  status: "Active",
-                  responses: 0,
-                  contextDocuments: 0,
-                  dateAdded: new Date(agenda.created_at || Date.now()).toLocaleString(),
-                }}
-                index={index}
-                role="researcher"
-                onClick={() => handleResearchViewAgenda(agenda.id_research_agenda)}
-              />
-            </Grid>
-          ))}
+          {loading ? (
+            <div>Loading...</div>
+          ) : (
+            agendas.map((agenda, index) => (
+              <Grid
+                size={{ xs: 12, md: 6, lg: 4 }}
+                key={agenda.id_research_agenda}
+              >
+                <AgendaCard
+                  agenda={{
+                    id: agenda.id_research_agenda,
+                    title: agenda.agenda_name,
+                    status: "Active",
+                    responses: 0,
+                    contextDocuments: 0,
+                    dateAdded: new Date(
+                      agenda.created_at || Date.now()
+                    ).toLocaleString(),
+                  }}
+                  index={index}
+                  role="researcher"
+                  onClick={() =>
+                    handleResearchViewAgenda(agenda.id_research_agenda)
+                  }
+                />
+              </Grid>
+            ))
+          )}
         </Grid>
       </Container>
     </Box>
