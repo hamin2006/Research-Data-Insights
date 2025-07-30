@@ -126,6 +126,7 @@ exports.handler = async (event) => {
             } else {
               // Insert a new user with 'member' role
               console.log("Trying to create A new User");
+              console.log(first_name, last_name, user_email, username);
               const newUser = await sqlConnection`
                 INSERT INTO "users" (cognito_id, user_email, username, first_name, last_name, time_account_created, roles, last_sign_in)
                 VALUES (${cognitoUserId}, ${user_email}, ${username}, ${first_name}, ${last_name}, CURRENT_TIMESTAMP, ARRAY['member'], CURRENT_TIMESTAMP)
@@ -198,6 +199,8 @@ exports.handler = async (event) => {
           WHERE cognito_id = ${targetCognitoId};
         `;
 
+        console.log(userToUpdate);
+
           if (userToUpdate.length === 0) {
             response.statusCode = 404;
             response.body = JSON.stringify({ error: "User not found" });
@@ -219,13 +222,18 @@ exports.handler = async (event) => {
           let updatedUser;
 
           if (action === "add") {
-            // Add researcher role if not already present
+            const userRoles = userToUpdate[0].roles || [];
+
+            if (!userRoles.includes("researcher")) {
+              userRoles.push("researcher");
+            }
+            
             updatedUser = await sqlConnection`
-        UPDATE "users"
-        SET roles = array_append(CASE WHEN 'researcher' = ANY(roles) THEN roles ELSE roles || '{researcher}' END)
-        WHERE cognito_id = ${targetCognitoId}
-        RETURNING *;
-      `;
+              UPDATE "users"
+              SET roles = ${userRoles}
+              WHERE cognito_id = ${targetCognitoId}
+              RETURNING *;
+            `;            
           } else {
             // Remove researcher role if present
             updatedUser = await sqlConnection`

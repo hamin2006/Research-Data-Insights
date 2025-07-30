@@ -33,34 +33,34 @@ exports.handler = async (event) => {
 
     // Retrieve roles from the database
     const dbUser = await sqlConnection`
-      SELECT role FROM "users"
-      WHERE email = ${email};
+      SELECT roles FROM "users"
+      WHERE user_email = ${email};
     `;
     
-    const dbRole = dbUser[0]?.role || [];
+    const dbRoles = dbUser[0]?.roles || [];
 
     // Handle role synchronization between Cognito and DB
     if (cognitoRoles.includes('admin')) {
       // If Cognito has admin, make sure DB is also admin
-      if (!dbRole.includes('admin')) {
+      if (!dbRoles.includes('admin')) {
         await sqlConnection`
           UPDATE "users"
-          SET role = array_append(roles, 'admin')
-          WHERE email = ${email};
+          SET roles = array_append(roles, 'admin')
+          WHERE user_email = ${email};
         `;
         console.log('DB role updated to include admin');
       }
     } else if (cognitoRoles.some(role => ['member'].includes(role))) {
       const cognitoNonAdminRole = cognitoRoles.find(role => ['member'].includes(role));
       
-      if (dbRole.includes('admin')) {
+      if (dbRoles.includes('admin')) {
         // If DB has admin but Cognito is not admin, update DB role to match Cognito
         await sqlConnection`
           UPDATE "users"
-          SET role = ${[cognitoNonAdminRole]}
-          WHERE email = ${email};
+          SET roles = ${[cognitoNonAdminRole]}
+          WHERE user_email = ${email};
         `;
-      } else if (dbRole.length && dbRole[0] !== cognitoNonAdminRole) {
+      } else if (dbRoles.length && dbRoles[0] !== cognitoNonAdminRole) {
         // If DB role doesn't match Cognito and isn't admin, update Cognito to match DB
         const removeFromGroupCommand = new AdminRemoveUserFromGroupCommand({
           UserPoolId: userPoolId,
@@ -70,7 +70,7 @@ exports.handler = async (event) => {
         const addToGroupCommand = new AdminAddUserToGroupCommand({
           UserPoolId: userPoolId,
           Username: userName,
-          GroupName: dbRole[0],
+          GroupName: dbRoles[0],
         });
 
         await client.send(removeFromGroupCommand);
