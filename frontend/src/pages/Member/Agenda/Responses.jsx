@@ -57,7 +57,7 @@ export default function Responses() {
   }, [agendaId]);
 
   const getStatusColor = (status) => {
-    return status === "Uploaded" ? "success" : "warning";
+    return status === "uploaded" ? "success" : "warning";
   };
 
   const handleGroupClick = (groupId) => {
@@ -168,8 +168,8 @@ export default function Responses() {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={"Uploaded"}
-                    color="success"
+                    label={group.upload_status}
+                    color={getStatusColor(group.upload_status)}
                     size="small"
                     sx={{ borderRadius: 1 }}
                   />

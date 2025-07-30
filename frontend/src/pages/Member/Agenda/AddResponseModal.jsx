@@ -65,6 +65,7 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
               document_name: fileName,
               file_path: key,
               //description: description,
+              upload_status: "uploaded",
             }),
           }
         );
@@ -73,14 +74,14 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
       onAddGroup({
         document_name: fileName,
         format: file.type,
-        status: "Uploaded",
+        upload_status: "uploaded",
       });
     } catch (error) {
       console.error("Error uploading response group:", error);
       onAddGroup({
         document_name: fileName,
         format: file.type,
-        status: "Failed",
+        upload_status: "failed",
       });
     }
 

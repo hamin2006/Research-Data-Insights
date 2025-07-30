@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -30,131 +30,61 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import AgendaCard from "../../components/AgendaCard";
 import ResearcherNavbar from "../../components/ResearcherNavbar";
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#1976d2",
-    },
-    secondary: {
-      main: "#dc004e",
-    },
-    background: {
-      default: "#f8fafc",
-      paper: "#ffffff",
-    },
-  },
-  typography: {
-    h6: {
-      fontWeight: 600,
-    },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          transition: "all 0.3s ease-in-out",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-          },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-        },
-      },
-    },
-  },
-});
-
-const allAgendas = [
-  {
-    title: "Spatial Empathy",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "June 18, 2025 at 3:44 PM",
-  },
-  {
-    title: "Signal Drift",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "June 18, 2025 at 3:44 PM",
-  },
-  {
-    title: "Interface Ecology",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "June 18, 2025 at 3:44 PM",
-  },
-  {
-    title: "Sleep Spindles",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "June 18, 2025 at 3:44 PM",
-  },
-  {
-    title: "Cognitive Pathways",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "June 18, 2025 at 3:44 PM",
-  },
-  {
-    title: "Emotion Circuits",
-    status: "Active",
-    responses: 4,
-    contextDocuments: 6,
-    dateAdded: "June 18, 2025 at 3:44 PM",
-  },
-  {
-    title: "Neural Networks",
-    status: "Active",
-    responses: 8,
-    contextDocuments: 12,
-    dateAdded: "June 17, 2025 at 2:30 PM",
-  },
-  {
-    title: "Behavioral Patterns",
-    status: "Inactive",
-    responses: 2,
-    contextDocuments: 3,
-    dateAdded: "June 16, 2025 at 1:15 PM",
-  },
-  {
-    title: "Memory Formation",
-    status: "Active",
-    responses: 6,
-    contextDocuments: 9,
-    dateAdded: "June 15, 2025 at 4:20 PM",
-  },
-];
+import { useNavigate } from "react-router-dom";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 export default function Component() {
   const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const [agendas, setAgendas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAgendas = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agendas`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setAgendas(data);
+        }
+      } catch (error) {
+        console.error("Error fetching agendas:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAgendas();
+  }, []);
 
   const filteredAgendas = useMemo(() => {
     if (!searchQuery.trim()) {
-      return allAgendas;
+      return agendas;
     }
-    return allAgendas.filter((agenda) =>
-      agenda.title.toLowerCase().includes(searchQuery.toLowerCase())
+    return agendas.filter((agenda) =>
+      agenda.agenda_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, agendas]);
 
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
   };
 
   const handleResearchViewAgenda = (id) => {
-    navigate(`/agenda/${id}/users`);
+    navigate(`/agenda/${id}/collaborators`);
   };
 
   return (
@@ -223,16 +153,29 @@ export default function Component() {
 
         {/* Agenda Grid */}
         <Grid container spacing={3}>
-          {filteredAgendas.map((agenda, index) => (
-            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
-              <AgendaCard
-                agenda={agenda}
-                index={index}
-                role={"researcher"}
-                onClick={handleResearchViewAgenda}
-              />
-            </Grid>
-          ))}
+          {loading ? (
+            <div>Loading...</div>
+          ) : (
+            filteredAgendas.map((agenda, index) => (
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={index}>
+                <AgendaCard
+                  agenda={{
+                    id: agenda.id_research_agenda,
+                    title: agenda.agenda_name,
+                    status: "Active",
+                    responses: 0,
+                    contextDocuments: 0,
+                    dateAdded: new Date(
+                      agenda.created_at || Date.now()
+                    ).toLocaleString(),
+                  }}
+                  index={index}
+                  role={"researcher"}
+                  onClick={handleResearchViewAgenda}
+                />
+              </Grid>
+            ))
+          )}
         </Grid>
 
         {/* No Results Message */}

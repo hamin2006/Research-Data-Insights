@@ -418,6 +418,8 @@ paths:
                   type: string
                 description:
                   type: string
+                upload_status:
+                  type: string
               required:
                 - document_name
                 - file_path
@@ -489,6 +491,8 @@ paths:
                 file_path:
                   type: string
                 description:
+                  type: string
+                upload_status:
                   type: string
               required:
                 - document_name

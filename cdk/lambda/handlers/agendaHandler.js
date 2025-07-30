@@ -151,11 +151,11 @@ exports.handler = async (event) => {
       case "POST /agenda/{agenda_id}/research-observation": {
         const agenda_id = event.pathParameters?.agenda_id;
         const body = JSON.parse(event.body || "{}");
-        const { document_name, file_path } = body;
+        const { document_name, file_path, upload_status } = body;
 
         await sqlConnection`
-    INSERT INTO research_observations (research_agenda_id, document_name, file_path)
-    VALUES (${agenda_id}, ${document_name}, ${file_path})
+    INSERT INTO research_observations (research_agenda_id, document_name, file_path, upload_status)
+    VALUES (${agenda_id}, ${document_name}, ${file_path}, ${upload_status}  )
   `;
 
         response.body = JSON.stringify({ message: "Observation saved" });
