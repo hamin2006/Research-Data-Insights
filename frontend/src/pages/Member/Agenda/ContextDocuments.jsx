@@ -57,7 +57,7 @@ export default function ContextDocuments() {
   }, [agendaId]);
 
   const getStatusColor = (status) => {
-    return status === "Uploaded" ? "success" : "warning";
+    return status === "uploaded" ? "success" : "warning";
   };
 
   const handleDeleteDocument = (docId) => {
@@ -68,7 +68,6 @@ export default function ContextDocuments() {
     const docWithId = {
       id: documents.length + 1,
       ...newDoc,
-      status: "Uploaded",
     };
     setDocuments((prev) => [...prev, docWithId]);
   };
@@ -158,8 +157,8 @@ export default function ContextDocuments() {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label="Uploaded"
-                    color="success"
+                    label={doc.upload_status}
+                    color={getStatusColor(doc.upload_status)}
                     size="small"
                     sx={{ borderRadius: 1 }}
                   />

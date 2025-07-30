@@ -30,50 +30,63 @@ export default function AddContextDocumentModal({
     const token = session.tokens.idToken;
     const payload = JSON.parse(atob(token.toString().split(".")[1]));
     const cognito_id = payload.sub;
+    try {
+      if (file) {
+        // Get presigned URL
+        const urlResponse = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}upload-url?file_name=${
+            file.name
+          }&file_type=${file.type}&agenda_id=${agendaId}&document_type=context`,
+          {
+            headers: {
+              Authorization: token,
+            },
+          }
+        );
+        const { presignedurl, key } = await urlResponse.json();
 
-    if (file) {
-      // Get presigned URL
-      const urlResponse = await fetch(
-        `${import.meta.env.VITE_API_ENDPOINT}upload-url?file_name=${
-          file.name
-        }&file_type=${file.type}&agenda_id=${agendaId}&document_type=context`,
-        {
-          headers: {
-            Authorization: token,
-          },
-        }
-      );
-      const { presignedurl, key } = await urlResponse.json();
+        // Upload to S3
+        await fetch(presignedurl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
 
-      // Upload to S3
-      await fetch(presignedurl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
+        // Update agenda with S3 key
+        await fetch(
+          `${
+            import.meta.env.VITE_API_ENDPOINT
+          }agenda/${agendaId}/context-document`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              document_name: fileName,
+              file_path: key,
+              description: description,
+              upload_status: "uploaded",
+            }),
+          }
+        );
+      }
+
+      onAddDocument({
+        document_name: fileName,
+        description,
+        upload_status: "uploaded",
       });
-
-      // Update agenda with S3 key
-      await fetch(
-        `${
-          import.meta.env.VITE_API_ENDPOINT
-        }agenda/${agendaId}/context-document`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: token,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_name: fileName,
-            file_path: key,
-            description: description,
-            upload_status: "uploaded",
-          }),
-        }
-      );
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      onAddDocument({
+        document_name: fileName,
+        description,
+        upload_status: "failed",
+      });
     }
 
-    onAddDocument({ document_name: fileName, description });
     setFileName("");
     setDescription("");
     setFile(null);
