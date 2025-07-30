@@ -900,26 +900,6 @@ export class ApiGatewayStack extends cdk.Stack {
       layers: [postgres],
       role: lambdaRole,
     });
-    const lambdaMemberFunction = new lambda.Function(
-      this,
-      `${id}-memberFunction`,
-      {
-        runtime: lambda.Runtime.NODEJS_20_X,
-        code: lambda.Code.fromAsset("lambda"),
-        handler: "handlers/memberHandler.handler",
-        timeout: Duration.seconds(300),
-        vpc: vpcStack.vpc,
-        environment: {
-          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-          USER_POOL: this.userPool.userPoolId,
-        },
-        functionName: `${id}-memberFunction`,
-        memorySize: 512,
-        layers: [postgres],
-        role: lambdaRole,
-      }
-    );
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
     lambdaUserFunction.addPermission("AllowApiGatewayInvoke", {
