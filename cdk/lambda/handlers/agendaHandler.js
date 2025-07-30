@@ -122,10 +122,13 @@ exports.handler = async (event) => {
 
         const user_id = userRow[0].user_id;
 
-        // Get all agendas for the user
+        // Get all agendas where user is owner OR collaborator
         const agendas = await sqlConnection`
-    SELECT * FROM research_agenda WHERE user_id = ${user_id}
-    ORDER BY id_research_agenda DESC
+    SELECT DISTINCT ra.* 
+    FROM research_agenda ra
+    LEFT JOIN agenda_collaborators ac ON ra.id_research_agenda = ac.research_agenda_id
+    WHERE ra.user_id = ${user_id} OR ac.user_id = ${user_id}
+    ORDER BY ra.id_research_agenda DESC
   `;
 
         response.body = JSON.stringify(agendas);
@@ -182,13 +185,16 @@ exports.handler = async (event) => {
 
         const user_id = userRow[0].user_id;
 
-        // Get specific agenda with related documents and observations
-        const agenda = await sqlConnection`
-    SELECT * FROM research_agenda 
-    WHERE id_research_agenda = ${agenda_id} AND user_id = ${user_id}
+        // Check if user is owner OR collaborator
+        const accessCheck = await sqlConnection`
+    SELECT ra.* FROM research_agenda ra
+    LEFT JOIN agenda_collaborators ac ON ra.id_research_agenda = ac.research_agenda_id
+    WHERE ra.id_research_agenda = ${agenda_id} 
+    AND (ra.user_id = ${user_id} OR ac.user_id = ${user_id})
+    LIMIT 1
   `;
 
-        if (!agenda || agenda.length === 0) {
+        if (!accessCheck || accessCheck.length === 0) {
           throw new Error("Agenda not found or access denied");
         }
 
@@ -205,7 +211,7 @@ exports.handler = async (event) => {
   `;
 
         response.body = JSON.stringify({
-          ...agenda[0],
+          ...accessCheck[0],
           context_documents: contextDocs,
           research_observations: observations,
         });
@@ -213,14 +219,14 @@ exports.handler = async (event) => {
       }
 
       case "GET /agenda/{agenda_id}/collaborators": {
-  const cognito_id = event.requestContext?.authorizer?.userId;
-  const agenda_id = event.pathParameters?.agenda_id;
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
 
-  if (!cognito_id) {
-    throw new Error("Missing user ID");
-  }
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
 
-  const collaborators = await sqlConnection`
+        const collaborators = await sqlConnection`
     SELECT ac.*, u.first_name, u.last_name, u.user_email, u.roles,
            added_by_user.first_name as added_by_first_name, 
            added_by_user.last_name as added_by_last_name
@@ -231,62 +237,63 @@ exports.handler = async (event) => {
     ORDER BY ac.added_at DESC
   `;
 
-  response.body = JSON.stringify(collaborators);
-  break;
-}
+        response.body = JSON.stringify(collaborators);
+        break;
+      }
 
-case "POST /agenda/{agenda_id}/collaborators": {
-  const cognito_id = event.requestContext?.authorizer?.userId;
-  const agenda_id = event.pathParameters?.agenda_id;
-  const body = JSON.parse(event.body || "{}");
-  const { user_email } = body;
+      case "POST /agenda/{agenda_id}/collaborators": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
+        const body = JSON.parse(event.body || "{}");
+        const { user_email } = body;
 
-  if (!cognito_id || !user_email) {
-    throw new Error("Missing required fields");
-  }
+        if (!cognito_id || !user_email) {
+          throw new Error("Missing required fields");
+        }
 
-  // Get the user who is adding the collaborator
-  const adderRow = await sqlConnection`
+        // Get the user who is adding the collaborator
+        const adderRow = await sqlConnection`
     SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
   `;
 
-  // Get the user to be added as collaborator
-  const userRow = await sqlConnection`
+        // Get the user to be added as collaborator
+        const userRow = await sqlConnection`
     SELECT user_id FROM users WHERE user_email = ${user_email}
   `;
 
-  if (!userRow || userRow.length === 0) {
-    throw new Error("User not found");
-  }
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found");
+        }
 
-  const result = await sqlConnection`
+        const result = await sqlConnection`
     INSERT INTO agenda_collaborators (research_agenda_id, user_id, added_by)
     VALUES (${agenda_id}, ${userRow[0].user_id}, ${adderRow[0].user_id})
     RETURNING *
   `;
 
-  response.body = JSON.stringify(result[0]);
-  break;
-}
+        response.body = JSON.stringify(result[0]);
+        break;
+      }
 
-case "DELETE /agenda/{agenda_id}/collaborators/{collaborator_id}": {
-  const cognito_id = event.requestContext?.authorizer?.userId;
-  const agenda_id = event.pathParameters?.agenda_id;
-  const collaborator_id = event.pathParameters?.collaborator_id;
+      case "DELETE /agenda/{agenda_id}/collaborators/{collaborator_id}": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
+        const collaborator_id = event.pathParameters?.collaborator_id;
 
-  if (!cognito_id) {
-    throw new Error("Missing user ID");
-  }
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
 
-  await sqlConnection`
+        await sqlConnection`
     DELETE FROM agenda_collaborators 
     WHERE id_agenda_collaborator = ${collaborator_id} AND research_agenda_id = ${agenda_id}
   `;
 
-  response.body = JSON.stringify({ message: "Collaborator removed successfully" });
-  break;
-}
-
+        response.body = JSON.stringify({
+          message: "Collaborator removed successfully",
+        });
+        break;
+      }
 
       default:
         throw new Error(`Unsupported route: "${pathData}"`);

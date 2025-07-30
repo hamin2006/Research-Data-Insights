@@ -349,7 +349,7 @@ paths:
 
     get:
       tags:
-        - Researcher
+        - Member
       summary: Get user's research agendas
       operationId: getUserAgendas
       responses:
@@ -364,7 +364,7 @@ paths:
         "500":
           description: Internal Server Error
       security:
-        - researcherAuthorizer: []
+        - memberAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
@@ -402,7 +402,7 @@ paths:
                 {}
     post:
       tags:
-        - Researcher
+        - Member
       summary: Save context document metadata
       operationId: saveContextDocument
       requestBody:
@@ -435,7 +435,7 @@ paths:
         "500":
           description: Internal Server Error
       security:
-        - researcherAuthorizer: []
+        - memberAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
@@ -474,7 +474,7 @@ paths:
                 {}
     post:
       tags:
-        - Researcher
+        - Member
       summary: Save context document metadata
       operationId: saveContextDocument
       requestBody:
@@ -507,7 +507,7 @@ paths:
         "500":
           description: Internal Server Error
       security:
-        - researcherAuthorizer: []
+        - memberAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
@@ -547,7 +547,7 @@ paths:
                 {}
     get:
       tags:
-        - Researcher
+        - Member
       summary: Get specific agenda with documents
       operationId: getAgenda
       responses:
@@ -564,7 +564,7 @@ paths:
         "500":
           description: Internal Server Error
       security:
-        - researcherAuthorizer: []
+        - memberAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
