@@ -19,7 +19,7 @@ import ResponseGroupDetail from "./ResponseGroups";
 import AddResponseModal from "./AddResponseModal";
 
 export default function Responses() {
-  const { agendaId } = useParams(); // Get agenda ID from URL
+  const { agendaId } = useParams();
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [responseGroups, setResponseGroups] = useState([]);
   const [agendaName, setAgendaName] = useState("");
@@ -32,11 +32,14 @@ export default function Responses() {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
 
-        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
-          headers: {
-            Authorization: token,
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`,
+          {
+            headers: {
+              Authorization: token,
+            },
           }
-        });
+        );
 
         const agendaData = await response.json();
         setResponseGroups(agendaData.research_observations || []);
@@ -66,54 +69,12 @@ export default function Responses() {
   };
 
   const handleAddResponseGroup = async (newGroup) => {
-  try {
-    const session = await fetchAuthSession();
-    const token = session.tokens.idToken;
-
-    if (newGroup.file) {
-      // Get presigned URL
-      const urlResponse = await fetch(`${import.meta.env.VITE_API_ENDPOINT}upload-url?file_name=${newGroup.file.name}&file_type=${newGroup.file.type}&agenda_id=${agendaId}&document_type=observation`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
-      });
-
-      const { presignedurl, key } = await urlResponse.json();
-
-      // Upload to S3
-      await fetch(presignedurl, {
-        method: "PUT",
-        body: newGroup.file,
-        headers: { "Content-Type": newGroup.file.type }
-      });
-
-      // Save to database
-      await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/research-observation`, {
-        method: "POST",
-        headers: {
-          Authorization: token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          document_name: newGroup.document_name,
-          file_path: key
-        })
-      });
-
-      // Add to local state
-      const groupWithId = {
-        id: responseGroups.length + 1,
-        document_name: newGroup.document_name,
-        file_path: key,
-        status: "Uploaded",
-      };
-      setResponseGroups((prev) => [...prev, groupWithId]);
-    }
-  } catch (error) {
-    console.error("Error adding response group:", error);
-  }
-};
-
+    const groupWithId = {
+      id: responseGroups.length + 1,
+      ...newGroup,
+    };
+    setResponseGroups((prev) => [...prev, groupWithId]);
+  };
 
   const handleDeleteGroup = (groupId, event) => {
     event.stopPropagation();
@@ -207,7 +168,7 @@ export default function Responses() {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label="Uploaded"
+                    label={"Uploaded"}
                     color="success"
                     size="small"
                     sx={{ borderRadius: 1 }}

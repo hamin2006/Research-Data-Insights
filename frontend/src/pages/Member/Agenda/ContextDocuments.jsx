@@ -32,11 +32,14 @@ export default function ContextDocuments() {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
 
-        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
-          headers: {
-            Authorization: token,
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`,
+          {
+            headers: {
+              Authorization: token,
+            },
           }
-        });
+        );
 
         const agendaData = await response.json();
         setDocuments(agendaData.context_documents || []);
