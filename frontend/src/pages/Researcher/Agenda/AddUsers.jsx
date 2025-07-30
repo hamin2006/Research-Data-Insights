@@ -1,47 +1,90 @@
-import { useState } from "react";
-import {
-  Box,
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { fetchAuthSession } from "aws-amplify/auth";
+import { Box, 
   Typography,
-  Button,
-  TextField,
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   Paper,
-  Chip,
+  Button,
+  TextField,
   InputAdornment,
+  TableContainer,
+  Chip,
 } from "@mui/material";
 import { Search, Add } from "@mui/icons-material";
 import AddUserModal from "./AddUserModal";
 
-const userData = [
-  {
-    id: 1,
-    fullName: "John Doe",
-    status: "Authorized",
-    email: "john.doe@ubc.ca",
-  },
-  {
-    id: 2,
-    fullName: "Patrick Star",
-    status: "Waiting For Sign-up",
-    email: "patrick.star@ubc.ca",
-  },
-  {
-    id: 3,
-    fullName: "Casper Ghost",
-    status: "Authorized",
-    email: "casper.ghost@gmail.com",
-  },
-];
-
 export default function AddUsers() {
+  const { agendaId } = useParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [users, setUsers] = useState(userData);
+  const [users, setUsers] = useState([]);
+  const [agendaName, setAgendaName] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCollaborators();
+    fetchAgendaName();
+  }, [agendaId]);
+
+  const fetchCollaborators = async () => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/collaborators`, {
+        headers: {
+          Authorization: token,
+        }
+      });
+
+      if (response.ok) {
+        const collaborators = await response.json();
+        
+        const formattedUsers = collaborators.map(collab => ({
+          id: collab.id_agenda_collaborator,
+          fullName: `${collab.first_name} ${collab.last_name}`,
+          status: "Authorized",
+          email: collab.user_email,
+        }));
+
+        setUsers(formattedUsers);
+      }
+    } catch (error) {
+      console.error("Error fetching collaborators:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAgendaName = async () => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
+        headers: {
+          Authorization: token,
+        }
+      });
+
+      if (response.ok) {
+        const agenda = await response.json();
+        setAgendaName(agenda.agenda_name);
+      }
+    } catch (error) {
+      console.error("Error fetching agenda:", error);
+    }
+  };
+
+  const handleAddUser = async (newUser) => {
+    // Refresh the collaborators list after adding
+    await fetchCollaborators();
+  };
 
   const filteredUsers = users.filter((user) =>
     user.fullName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -51,26 +94,15 @@ export default function AddUsers() {
     return status === "Authorized" ? "success" : "warning";
   };
 
-  const handleAddUser = (newUser) => {
-    const userWithId = {
-      id: users.length + 1,
-      ...newUser,
-    };
-    setUsers((prev) => [...prev, userWithId]);
-  };
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <Box>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
-        }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, color: "#1F2937" }}>
-          Spatial Empathy
+          {agendaName}
         </Typography>
         <Button
           variant="contained"
@@ -148,10 +180,12 @@ export default function AddUsers() {
           </TableBody>
         </Table>
       </TableContainer>
+      
       <AddUserModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddUser={handleAddUser}
+        agendaId={agendaId}
       />
     </Box>
   );
