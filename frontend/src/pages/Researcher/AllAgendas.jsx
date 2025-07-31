@@ -30,10 +30,11 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import AgendaCard from "../../components/AgendaCard";
 import ResearcherNavbar from "../../components/ResearcherNavbar";
+import MemberNavbar from "../../components/MemberNavbar";
 import { useNavigate } from "react-router-dom";
 import { fetchAuthSession } from "aws-amplify/auth";
 
-export default function Component() {
+export default function Component({ role }) {
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const [agendas, setAgendas] = useState([]);
@@ -84,7 +85,11 @@ export default function Component() {
   };
 
   const handleResearchViewAgenda = (id) => {
-    navigate(`/agenda/${id}/collaborators`);
+    if (role === "researcher") {
+      navigate(`/agenda/${id}/collaborators`);
+    } else if (role === "member") {
+      navigate(`/agenda/${id}/responses`);
+    }
   };
 
   return (
@@ -95,7 +100,7 @@ export default function Component() {
         background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
       }}
     >
-      <ResearcherNavbar />
+      {role === "researcher" ? <ResearcherNavbar /> : <MemberNavbar />}
       {/* Main Content */}
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Page Title */}
@@ -170,7 +175,7 @@ export default function Component() {
                     ).toLocaleString(),
                   }}
                   index={index}
-                  role={"researcher"}
+                  role={role}
                   onClick={handleResearchViewAgenda}
                 />
               </Grid>

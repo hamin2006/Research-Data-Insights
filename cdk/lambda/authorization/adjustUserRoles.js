@@ -50,38 +50,34 @@ exports.handler = async (event) => {
     const dbRoles = dbUser[0]?.roles || [];
 
     // Handle role synchronization between Cognito and DB
-    if (cognitoRoles.includes("admin") || cognitoRoles.includes("researcher")) {
-      // If Cognito has admin or researcher, make sure DB matches
-      const roleToSync = cognitoRoles.includes("admin")
-        ? "admin"
-        : "researcher";
-
-      if (!dbRoles.includes(roleToSync)) {
+    if (cognitoRoles.includes("admin")) {
+      // If Cognito has admin, make sure DB is also admin
+      if (!dbRoles.includes("admin")) {
         await sqlConnection`
           UPDATE "users"
-          SET roles = array_append(roles, ${roleToSync})
+          SET roles = array_append(roles, 'admin')
           WHERE user_email = ${email};
         `;
-        console.log(`DB role updated to include ${roleToSync}`);
+        console.log("DB role updated to include admin");
       }
     } else if (cognitoRoles.some((role) => ["member"].includes(role))) {
-      const cognitoNonPrivilegedRole = cognitoRoles.find((role) =>
+      const cognitoNonAdminRole = cognitoRoles.find((role) =>
         ["member"].includes(role)
       );
 
-      if (dbRoles.includes("admin") || dbRoles.includes("researcher")) {
-        // If DB has privileged role but Cognito doesn't, update DB role to match Cognito
+      if (dbRoles.includes("admin")) {
+        // If DB has admin but Cognito is not admin, update DB role to match Cognito
         await sqlConnection`
           UPDATE "users"
-          SET roles = ${[cognitoNonPrivilegedRole]}
+          SET roles = ${[cognitoNonAdminRole]}
           WHERE user_email = ${email};
         `;
-      } else if (dbRoles.length && dbRoles[0] !== cognitoNonPrivilegedRole) {
-        // If DB role doesn't match Cognito and isn't privileged, update Cognito to match DB
+      } else if (dbRoles.length && dbRoles[0] !== cognitoNonAdminRole) {
+        // If DB role doesn't match Cognito and isn't admin, update Cognito to match DB
         const removeFromGroupCommand = new AdminRemoveUserFromGroupCommand({
           UserPoolId: userPoolId,
           Username: userName,
-          GroupName: cognitoNonPrivilegedRole,
+          GroupName: cognitoNonAdminRole,
         });
         const addToGroupCommand = new AdminAddUserToGroupCommand({
           UserPoolId: userPoolId,

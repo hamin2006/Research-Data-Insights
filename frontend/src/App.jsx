@@ -139,15 +139,15 @@ function App() {
           <Route path="/admin" element={<AdminHomePage />} />
           <Route path="/member" element={<MemberHomePage />} />
           <Route path="/researcher" element={<ResearcherHomePage />} />
-          <Route path="/all-agendas" element={<AllAgendas />} />
+          <Route
+            path="/all-agendas"
+            element={<AllAgendas role={getUserRole()} />}
+          />
           <Route
             path="/ai-settings"
             element={<AISettings messageLimit={100} />}
           />
-          <Route
-            path="/add-agenda"
-            element={<AgendaForm />}
-          />
+          <Route path="/add-agenda" element={<AgendaForm />} />
           <Route
             path="agenda/:agendaId/collaborators"
             element={<AgendaView tab={"Collaborators"} role={getUserRole()} />}
