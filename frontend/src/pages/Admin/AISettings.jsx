@@ -6,6 +6,7 @@ import {
   Box,
   Slider,
   Button,
+  TextField,
 } from "@mui/material";
 import AdminNavbar from "./AdminNavbar";
 import WarningModal from "../../components/WarningModal";
@@ -55,7 +56,7 @@ function AISettings({ messageLimit }) {
                 value={tempLimit}
                 onChange={(_, value) => setTempLimit(value)}
                 min={1}
-                max={1000}
+                max={250}
                 step={1}
                 marks={[
                   { value: 1, label: "1" },
@@ -74,8 +75,24 @@ function AISettings({ messageLimit }) {
               />
             </Box>
 
-            <Typography variant="body1" sx={{ mt: 2, textAlign: "center" }}>
-              Current limit: <strong>{tempLimit} messages per day</strong>
+            <Typography
+              variant="body1"
+              sx={{
+                mt: 2,
+                textAlign: "center",
+              }}
+            >
+              Current limit:{" "}
+              <strong>
+                <TextField
+                  value={tempLimit}
+                  onChange={(e) => setTempLimit(e.target.value)}
+                  type="number"
+                  inputProps={{ min: 1, max: 250 }}
+                  sx={{ p: 0, width: 80, height: 50, textAlign: "center" }}
+                />{" "}
+                messages per day
+              </strong>
             </Typography>
           </Box>
 

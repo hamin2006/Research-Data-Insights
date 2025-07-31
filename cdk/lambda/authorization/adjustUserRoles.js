@@ -1,5 +1,11 @@
 const { initializeConnection } = require("./initializeConnection.js");
-const { CognitoIdentityProviderClient, AdminListGroupsForUserCommand, AdminGetUserCommand, AdminAddUserToGroupCommand, AdminRemoveUserFromGroupCommand } = require("@aws-sdk/client-cognito-identity-provider");
+const {
+  CognitoIdentityProviderClient,
+  AdminListGroupsForUserCommand,
+  AdminGetUserCommand,
+  AdminAddUserToGroupCommand,
+  AdminRemoveUserFromGroupCommand,
+} = require("@aws-sdk/client-cognito-identity-provider");
 const { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT } = process.env;
 let sqlConnection = global.sqlConnection;
 
@@ -19,7 +25,9 @@ exports.handler = async (event) => {
       Username: userName,
     });
     const userGroupsResponse = await client.send(userGroupsCommand);
-    const cognitoRoles = userGroupsResponse.Groups.map(group => group.GroupName);
+    const cognitoRoles = userGroupsResponse.Groups.map(
+      (group) => group.GroupName
+    );
 
     // Get user attributes
     const userAttributesCommand = new AdminGetUserCommand({
@@ -28,7 +36,9 @@ exports.handler = async (event) => {
     });
     const userAttributesResponse = await client.send(userAttributesCommand);
 
-    const emailAttr = userAttributesResponse.UserAttributes.find(attr => attr.Name === 'email');
+    const emailAttr = userAttributesResponse.UserAttributes.find(
+      (attr) => attr.Name === "email"
+    );
     const email = emailAttr ? emailAttr.Value : null;
 
     // Retrieve roles from the database
@@ -36,36 +46,42 @@ exports.handler = async (event) => {
       SELECT roles FROM "users"
       WHERE user_email = ${email};
     `;
-    
+
     const dbRoles = dbUser[0]?.roles || [];
 
     // Handle role synchronization between Cognito and DB
-    if (cognitoRoles.includes('admin')) {
-      // If Cognito has admin, make sure DB is also admin
-      if (!dbRoles.includes('admin')) {
+    if (cognitoRoles.includes("admin") || cognitoRoles.includes("researcher")) {
+      // If Cognito has admin or researcher, make sure DB matches
+      const roleToSync = cognitoRoles.includes("admin")
+        ? "admin"
+        : "researcher";
+
+      if (!dbRoles.includes(roleToSync)) {
         await sqlConnection`
           UPDATE "users"
-          SET roles = array_append(roles, 'admin')
+          SET roles = array_append(roles, ${roleToSync})
           WHERE user_email = ${email};
         `;
-        console.log('DB role updated to include admin');
+        console.log(`DB role updated to include ${roleToSync}`);
       }
-    } else if (cognitoRoles.some(role => ['member'].includes(role))) {
-      const cognitoNonAdminRole = cognitoRoles.find(role => ['member'].includes(role));
-      
-      if (dbRoles.includes('admin')) {
-        // If DB has admin but Cognito is not admin, update DB role to match Cognito
+    } else if (cognitoRoles.some((role) => ["member"].includes(role))) {
+      const cognitoNonPrivilegedRole = cognitoRoles.find((role) =>
+        ["member"].includes(role)
+      );
+
+      if (dbRoles.includes("admin") || dbRoles.includes("researcher")) {
+        // If DB has privileged role but Cognito doesn't, update DB role to match Cognito
         await sqlConnection`
           UPDATE "users"
-          SET roles = ${[cognitoNonAdminRole]}
+          SET roles = ${[cognitoNonPrivilegedRole]}
           WHERE user_email = ${email};
         `;
-      } else if (dbRoles.length && dbRoles[0] !== cognitoNonAdminRole) {
-        // If DB role doesn't match Cognito and isn't admin, update Cognito to match DB
+      } else if (dbRoles.length && dbRoles[0] !== cognitoNonPrivilegedRole) {
+        // If DB role doesn't match Cognito and isn't privileged, update Cognito to match DB
         const removeFromGroupCommand = new AdminRemoveUserFromGroupCommand({
           UserPoolId: userPoolId,
           Username: userName,
-          GroupName: cognitoNonAdminRole,
+          GroupName: cognitoNonPrivilegedRole,
         });
         const addToGroupCommand = new AdminAddUserToGroupCommand({
           UserPoolId: userPoolId,
