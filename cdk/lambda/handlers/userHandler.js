@@ -115,8 +115,6 @@ exports.handler = async (event) => {
                     UPDATE "users"
                     SET
                         username = ${username},
-                        first_name = ${first_name},
-                        last_name = ${last_name},
                         last_sign_in = CURRENT_TIMESTAMP,
                         time_account_created = CURRENT_TIMESTAMP
                     WHERE cognito_id = ${cognitoUserId}
