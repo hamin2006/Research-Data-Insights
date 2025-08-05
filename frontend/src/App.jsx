@@ -42,6 +42,16 @@ function App() {
   const [userGroup, setUserGroup] = useState(null);
   const [group, setGroup] = useState(null);
 
+  const ProtectedRoute = ({ allowedGroups, userGroup, element }) => {
+    if (!userGroup) return null;
+
+    const isAuthorized = userGroup.some((group) =>
+      allowedGroups.includes(group)
+    );
+
+    return isAuthorized ? element : <Navigate to="/home" />;
+  };
+
   const theme = createTheme({
     palette: {
       primary: {
@@ -136,21 +146,62 @@ function App() {
             element={user ? <Navigate to="/home" /> : <Login />}
           />
           <Route path="/home" element={getHomePage()} />
-          <Route path="/admin" element={<AdminHomePage />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute
+                allowedGroups={["admin"]}
+                userGroup={userGroup}
+                element={<AdminHomePage />}
+              />
+            }
+          />
           <Route path="/member" element={<MemberHomePage />} />
-          <Route path="/researcher" element={<ResearcherHomePage />} />
+          <Route
+            path="/researcher"
+            element={
+              <ProtectedRoute
+                allowedGroups={["researcher"]}
+                userGroup={userGroup}
+                element={<ResearcherHomePage />}
+              />
+            }
+          />
           <Route
             path="/all-agendas"
             element={<AllAgendas role={getUserRole()} />}
           />
           <Route
             path="/ai-settings"
-            element={<AISettings messageLimit={100} />}
+            element={
+              <ProtectedRoute
+                allowedGroups={["admin"]}
+                userGroup={userGroup}
+                element={<AISettings messageLimit={100} />}
+              />
+            }
           />
-          <Route path="/add-agenda" element={<AgendaForm />} />
+          <Route
+            path="/add-agenda"
+            element={
+              <ProtectedRoute
+                allowedGroups={["researcher"]}
+                userGroup={userGroup}
+                element={<AgendaForm messageLimit={100} />}
+              />
+            }
+          />
           <Route
             path="agenda/:agendaId/collaborators"
-            element={<AgendaView tab={"Collaborators"} role={getUserRole()} />}
+            element={
+              <ProtectedRoute
+                allowedGroups={["researcher"]}
+                userGroup={userGroup}
+                element={
+                  <AgendaView tab={"Collaborators"} role={getUserRole()} />
+                }
+              />
+            }
           />
           <Route
             path="agenda/:agendaId/prompt-settings"
@@ -160,7 +211,15 @@ function App() {
           />
           <Route
             path="agenda/:agendaId/ai-settings"
-            element={<AgendaView tab={"AI Settings"} role={getUserRole()} />}
+            element={
+              <ProtectedRoute
+                allowedGroups={["researcher"]}
+                userGroup={userGroup}
+                element={
+                  <AgendaView tab={"AI Settings"} role={getUserRole()} />
+                }
+              />
+            }
           />
           <Route
             path="agenda/:agendaId/responses"
