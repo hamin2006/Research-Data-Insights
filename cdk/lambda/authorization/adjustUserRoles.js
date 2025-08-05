@@ -90,6 +90,17 @@ exports.handler = async (event) => {
       }
     }
 
+    if (
+      dbRoles.includes("researcher") &&
+      !cognitoRoles.includes("researcher")
+    ) {
+      const addToGroupCommand = new AdminAddUserToGroupCommand({
+        UserPoolId: userPoolId,
+        Username: userName,
+        GroupName: "researcher",
+      });
+      await client.send(addToGroupCommand);
+    }
     return event;
   } catch (err) {
     console.error(err);
