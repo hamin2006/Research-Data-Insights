@@ -23,6 +23,10 @@ import { Stack, StackProps } from "aws-cdk-lib";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
 
+interface ApiGatewayStackProps extends cdk.StackProps {
+  ecrRepositories: { [key: string]: ecr.Repository };
+}
+
 export class ApiGatewayStack extends cdk.Stack {
   private readonly api: apigateway.SpecRestApi;
   public readonly appClient: cognito.UserPoolClient;
@@ -47,7 +51,7 @@ export class ApiGatewayStack extends cdk.Stack {
     id: string,
     db: DatabaseStack,
     vpcStack: VpcStack,
-    props?: StackProps
+    props: ApiGatewayStackProps
   ) {
     super(scope, id, props);
 
@@ -962,7 +966,6 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     cfnLambda_agenda.overrideLogicalId("agendaFunction");
 
-    
     const lambdaPromptFunction = new lambda.Function(
       this,
       `${id}-promptFunction`,
@@ -1000,7 +1003,6 @@ export class ApiGatewayStack extends cdk.Stack {
     const cfnLambda_prompt = lambdaPromptFunction.node
       .defaultChild as lambda.CfnFunction;
     cfnLambda_prompt.overrideLogicalId("promptFunction");
-
 
     /**
      *
