@@ -8,25 +8,166 @@ from datetime import datetime, timezone
 from helpers.vectorstore import update_vectorstore
 from langchain_aws import BedrockEmbeddings
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
+
+# Environment variables
+DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
+REGION = os.environ["REGION"]
+RDI_DATA_INGESTION_BUCKET = os.environ["BUCKET"]
+EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
+RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
+EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
+
+# AWS Clients
+secrets_manager_client = boto3.client("secretsmanager")
+ssm_client = boto3.client("ssm")
+bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
+
+# Cached resources
+connection = None
+db_secret = None
+EMBEDDING_MODEL_ID = None
+
 def get_secret():
-    pass
+    global db_secret
+    if db_secret is None:
+        try:
+            response = secrets_manager_client.get_secret_value(SecretId=DB_SECRET_NAME)["SecretString"]
+            db_secret = json.loads(response)
+        except Exception as e:
+            logger.error(f"Error fetching secret: {e}")
+            raise
+    return db_secret
 
 def get_parameter():
-    pass
+    global EMBEDDING_MODEL_ID
+    if EMBEDDING_MODEL_ID is None:
+        try:
+            response = ssm_client.get_parameter(Name=EMBEDDING_MODEL_PARAM, WithDecryption=True)
+            EMBEDDING_MODEL_ID = response["Parameter"]["Value"]
+        except Exception as e:
+            logger.error(f"Error fetching parameter {EMBEDDING_MODEL_PARAM}: {e}")
+            raise
+    return EMBEDDING_MODEL_ID
 
 def connect_to_db():
-    pass
+    global connection
+    if connection is None or connection.closed:
+        try:
+            secret = get_secret()
+            connection_params = {
+                'dbname': secret["dbname"],
+                'user': secret["username"],
+                'password': secret["password"],
+                'host': RDS_PROXY_ENDPOINT,
+                'port': secret["port"]
+            }
+            connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+            connection = psycopg2.connect(connection_string)
+            logger.info("Connected to the database!")
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            if connection:
+                connection.rollback()
+                connection.close()
+            raise
+    return connection
 
 def parse_s3_file_path(file_key):
-    pass
+    # Assuming the file path is of the format: agendas/{agenda_id}/{document_type}/{file_name}.{file_type}
+    print(f"file_key: {file_key}")
+    try:
+        agenda_id, document_type, filename_with_ext = file_key.split('/')[1:]
+        file_name, file_type = filename_with_ext.rsplit('.', 1)
+        return agenda_id, document_type, file_name, file_type
+    except Exception as e:
+        logger.error(f"Error parsing S3 file path: {e}")
+        return {
+                    "statusCode": 400,
+                    "body": json.dumps("Error parsing S3 file path.")
+                }
 
 def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name):
     pass
 
-def update_vectorstore_from_s3(bucket, course_id, module_id):
+def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name):
     # BedrockEmbeddings, get_secret, get_parameter, update_vectorstore
-    pass
+    embeddings = BedrockEmbeddings(
+        model_id=get_parameter(), 
+        client=bedrock_runtime,
+        region_name=REGION
+    )
+
+    secret = get_secret()
+
+    vectorstore_config_dict = {
+        'collection_name': f'{module_id}',
+        'dbname': secret["dbname"],
+        'user': secret["username"],
+        'password': secret["password"],
+        'host': RDS_PROXY_ENDPOINT,
+        'port': secret["port"]
+    }
+
+    try:
+        update_vectorstore(
+            bucket=bucket,
+            agenda=agenda_id,
+            vectorstore_config_dict=vectorstore_config_dict,
+            embeddings=embeddings
+        )
+    except Exception as e:
+        logger.error(f"Error updating vectorstore for agenda {agenda_id} {document_type} {file_name}: {e}")
+        raise
 
 def handler(event, context):
     # get_secret, get_parameter, connect_to_db, parse_s3_file_path, insert_file_into_db, update_vectorstore_from_s3
-    pass
+    records = event.get('Records', [])
+    if not records:
+        return {
+            "statusCode": 400,
+            "body": json.dumps("No valid S3 event found.")
+        }
+
+    for record in records:
+        event_name = record['eventName']
+        bucket_name = record['s3']['bucket']['name']
+
+        # Only process files from the AILA_DATA_INGESTION_BUCKET
+        if bucket_name != RDI_DATA_INGESTION_BUCKET:
+            print(f"Ignoring event from non-target bucket: {bucket_name}")
+            continue  # Ignore this event and move to the next one
+        file_key = record['s3']['object']['key']
+
+        # if event_name.startswith('ObjectCreated:'):
+        # Parse the file path
+        agenda_id, document_type, file_name, file_type = parse_s3_file_path(file_key)
+        if not agenda_id or not document_type or not file_name or not file_type:
+            return {
+                "statusCode": 400,
+                "body": json.dumps("Error parsing S3 file path.")
+            }
+
+        try:
+            update_vectorstore_from_s3(bucket_name, agenda_id)
+            logger.info(f"Vectorstore updated successfully for module for agenda {agenda_id} {document_type} {file_name}.")
+        except Exception as e:
+            logger.error(f"Error updating vectorstore for agenda {agenda_id} {document_type} {file_name}: {e}")
+            return {
+                "statusCode": 500,
+                "body": json.dumps(f"File inserted, but error updating vectorstore: {e}")
+            }
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps({
+                "message": "New file inserted into database.",
+                "location": f"s3://{bucket_name}/{file_key}"
+            })
+        }
+
+    return {
+        "statusCode": 400,
+        "body": json.dumps("No new file upload or deletion event found.")
+    }
