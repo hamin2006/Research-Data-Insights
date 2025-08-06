@@ -134,7 +134,7 @@ def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name)
 def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_id):
     # BedrockEmbeddings, get_secret, get_parameter, update_vectorstore
     embeddings = BedrockEmbeddings(
-        model_id=get_parameter(), 
+        model_id=get_parameter(),
         client=bedrock_runtime,
         region_name=REGION
     )
