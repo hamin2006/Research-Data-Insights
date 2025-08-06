@@ -44,6 +44,22 @@ export class CICDStack extends cdk.Stack {
       )
     );
 
+codeBuildRole.addToPolicy(
+  new iam.PolicyStatement({
+    effect: iam.Effect.ALLOW,
+    actions: [
+      "lambda:GetFunction",
+      "lambda:UpdateFunctionCode",
+      "lambda:UpdateFunctionConfiguration",
+    ],
+    resources: [
+      `arn:aws:lambda:${this.region}:${this.account}:function:*-TextGenLambdaDockerFunction`,
+      `arn:aws:lambda:${this.region}:${this.account}:function:*-DataIngestLambdaDockerFunction`,
+    ],
+  })
+);
+
+
     // Create artifacts for pipeline
     const sourceOutput = new codepipeline.Artifact();
 
@@ -239,5 +255,7 @@ fi`
       stageName: "Build",
       actions: buildActions,
     });
+    
   }
+
 }
