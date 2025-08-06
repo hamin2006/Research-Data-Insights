@@ -5,6 +5,7 @@ def update_vectorstore(
     bucket: str,
     agenda_id: str,
     document_type: str,  # "context" or "observation"
+    file_name: str,
     vectorstore_config_dict: Dict[str, str],
     embeddings  # BedrockEmbeddings
 ) -> None:
@@ -25,6 +26,7 @@ def update_vectorstore(
         bucket=bucket,
         agenda_id=agenda_id,
         document_type=document_type,
+        file_name=file_name,
         vectorstore_config_dict=vectorstore_config_dict,
         embeddings=embeddings
     )

@@ -102,7 +102,7 @@ def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name):
     secret = get_secret()
 
     vectorstore_config_dict = {
-        'collection_name': f'{module_id}',
+        'collection_name': f'agenda_{agenda_id}_{document_type}',
         'dbname': secret["dbname"],
         'user': secret["username"],
         'password': secret["password"],
@@ -113,7 +113,9 @@ def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name):
     try:
         update_vectorstore(
             bucket=bucket,
-            agenda=agenda_id,
+            agenda_id=agenda_id,
+            document_type=document_type,
+            file_name=file_name,
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
@@ -150,7 +152,7 @@ def handler(event, context):
             }
 
         try:
-            update_vectorstore_from_s3(bucket_name, agenda_id)
+            update_vectorstore_from_s3(bucket_name, agenda_id, document_type, file_name)
             logger.info(f"Vectorstore updated successfully for module for agenda {agenda_id} {document_type} {file_name}.")
         except Exception as e:
             logger.error(f"Error updating vectorstore for agenda {agenda_id} {document_type} {file_name}: {e}")
