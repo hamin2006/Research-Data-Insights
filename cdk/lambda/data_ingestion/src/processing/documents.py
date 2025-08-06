@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 s3 = boto3.client('s3')
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
-print('EMBEDDING_BUCKET_NAME',EMBEDDING_BUCKET_NAME)
 
 # ---------- CONVERSION HELPERS ----------
 

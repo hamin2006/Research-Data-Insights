@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import { Construct } from "constructs";
@@ -333,6 +334,30 @@ export class ApiGatewayStack extends cdk.Stack {
       autoDeleteObjects: true,
       enforceSSL: true,
     });
+
+    const embeddingStorageBucket = new s3.Bucket(
+      this,
+      `${id}-embeddingStorageBucket`,
+      {
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        cors: [
+          {
+            allowedHeaders: ["*"],
+            allowedMethods: [
+              s3.HttpMethods.GET,
+              s3.HttpMethods.PUT,
+              s3.HttpMethods.HEAD,
+              s3.HttpMethods.POST,
+              s3.HttpMethods.DELETE,
+            ],
+            allowedOrigins: ["*"],
+          },
+        ],
+        // When deleting the stack, need to empty the Bucket and delete it manually
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        enforceSSL: true,
+      }
+    );
 
     // Create the Lambda function for generating presigned URLs
     const generatePreSignedURL = new lambda.Function(
@@ -1051,6 +1076,17 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    // Create SSM parameter for embedding model
+    const embeddingModelParameter = new ssm.StringParameter(
+      this,
+      "EmbeddingModelParameter",
+      {
+        parameterName: `/${id}/RDI/EmbeddingModelId`,
+        description: "Parameter containing the Embedding Model ID",
+        stringValue: "amazon.titan-embed-text-v2:0",
+      }
+    );
+
     // Create the researcher function that the OpenAPI references
     const lambdaResearcherFunction = new lambda.Function(
       this,
@@ -1085,6 +1121,119 @@ export class ApiGatewayStack extends cdk.Stack {
     const cfnLambda_researcher = lambdaResearcherFunction.node
       .defaultChild as lambda.CfnFunction;
     cfnLambda_researcher.overrideLogicalId("researcherFunction");
+
+    const bedrockPolicyStatement = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["bedrock:InvokeModel", "bedrock:InvokeEndpoint"],
+      resources: [
+        "arn:aws:bedrock:" +
+          this.region +
+          "::foundation-model/amazon.titan-embed-text-v2:0",
+      ],
+    });
+
+    const dataIngestionLambdaDockerFunc = new lambda.DockerImageFunction(
+      this,
+      `${id}-DataIngestionLambdaDockerFunc`,
+      {
+        code: lambda.DockerImageCode.fromEcr(
+          props.ecrRepositories["dataIngestion"],
+          {
+            tagOrDigest: "latest",
+          }
+        ),
+        memorySize: 3008,
+        timeout: cdk.Duration.seconds(600),
+        vpc: vpcStack.vpc, // Pass the VPC
+        functionName: `${id}-DataIngestionLambdaDockerFunc`,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathAdminName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpointAdmin,
+          BUCKET: documentsBucket.bucketName,
+          REGION: this.region,
+          EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
+          EASYOCR_MODULE_PATH: "/tmp/easyocr",
+        },
+      }
+    );
+
+    const cfnDataIngestionLambdaDockerFunc = dataIngestionLambdaDockerFunc.node
+      .defaultChild as lambda.CfnFunction;
+    cfnDataIngestionLambdaDockerFunc.overrideLogicalId(
+      "DataIngestionLambdaDockerFunc"
+    );
+
+    documentsBucket.grantRead(dataIngestionLambdaDockerFunc);
+
+    // Add ListBucket permission explicitly
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [documentsBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [embeddingStorageBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
+        resources: [
+          `arn:aws:s3:::${embeddingStorageBucket.bucketName}/*`, // Grant access to all objects within this bucket
+        ],
+      })
+    );
+
+    // Attach the custom Bedrock policy to Lambda function
+    dataIngestionLambdaDockerFunc.addToRolePolicy(bedrockPolicyStatement);
+
+    // Add the S3 event source trigger to the Lambda function
+    dataIngestionLambdaDockerFunc.addEventSource(
+      new lambdaEventSources.S3EventSource(documentsBucket, {
+        events: [
+          s3.EventType.OBJECT_CREATED,
+          s3.EventType.OBJECT_REMOVED,
+          s3.EventType.OBJECT_RESTORE_COMPLETED,
+        ],
+      })
+    );
+
+    // Grant access to Secret Manager
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          //Secrets Manager
+          "secretsmanager:GetSecretValue",
+        ],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+        ],
+      })
+    );
+
+    // Grant access to SSM Parameter Store for specific parameters
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [embeddingModelParameter.parameterArn],
+      })
+    );
 
     // Waf Firewall
     const waf = new wafv2.CfnWebACL(this, `${id}-waf`, {
