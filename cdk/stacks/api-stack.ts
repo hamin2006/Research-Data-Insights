@@ -1,7 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import { Construct } from "constructs";
@@ -23,6 +22,7 @@ import * as ecr from "aws-cdk-lib/aws-ecr";
 import { Stack, StackProps } from "aws-cdk-lib";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
+import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 
 interface ApiGatewayStackProps extends cdk.StackProps {
   ecrRepositories: { [key: string]: ecr.Repository };
@@ -1076,16 +1076,7 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    // Create SSM parameter for embedding model
-    const embeddingModelParameter = new ssm.StringParameter(
-      this,
-      "EmbeddingModelParameter",
-      {
-        parameterName: `/${id}/RDI/EmbeddingModelId`,
-        description: "Parameter containing the Embedding Model ID",
-        stringValue: "amazon.titan-embed-text-v2:0",
-      }
-    );
+    
 
     // Create the researcher function that the OpenAPI references
     const lambdaResearcherFunction = new lambda.Function(
@@ -1116,6 +1107,122 @@ export class ApiGatewayStack extends cdk.Stack {
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*`,
     });
+
+    // Create parameters for Bedrock LLM ID, Embedding Model ID, and Table Name in Parameter Store
+    const bedrockLLMParameter = new ssm.StringParameter(this, "BedrockLLMParameter", {
+      parameterName: `/${id}/RDI/BedrockLLMId`,
+      description: "Parameter containing the Bedrock LLM ID",
+      stringValue: "meta.llama3-70b-instruct-v1:0",
+    });
+
+    const embeddingModelParameter = new ssm.StringParameter(this, "EmbeddingModelParameter", {
+      parameterName: `/${id}/RDI/EmbeddingModelId`,
+      description: "Parameter containing the Embedding Model ID",
+      stringValue: "amazon.titan-embed-text-v2:0",
+    });
+
+    const tableNameParameter = new ssm.StringParameter(this, "TableNameParameter", {
+      parameterName: `/${id}/RDI/TableName`,
+      description: "Parameter containing the DynamoDB table name",
+      stringValue: "DynamoDB-Conversation-Table",
+    });
+
+
+    /**
+     * Create Lambda with container image for text generation workflow in RAG pipeline
+     */
+    const textGenLambdaDockerFunc = new lambda.DockerImageFunction(
+      this,
+      `${id}-TextGenLambdaDockerFunction`,
+      {
+        code: lambda.DockerImageCode.fromEcr(
+          props.ecrRepositories["textGeneration"],
+          {
+            tagOrDigest: "latest",
+          }
+        ),
+        memorySize: 1024,
+        timeout: cdk.Duration.seconds(300),
+        vpc: vpcStack.vpc,
+        functionName: `${id}-TextGenLambdaDockerFunction`,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          REGION: this.region,
+          BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
+          TABLE_NAME_PARAM: tableNameParameter.parameterName,
+        },
+      }
+    );
+
+    // Override the Logical ID
+    const cfnTextGenDockerFunc = textGenLambdaDockerFunc.node
+      .defaultChild as lambda.CfnFunction;
+    cfnTextGenDockerFunc.overrideLogicalId("TextGenLambdaDockerFunc");
+
+    // API Gateway permissions
+    textGenLambdaDockerFunc.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/agenda*`,
+    });
+
+    // DynamoDB permissions
+    textGenLambdaDockerFunc.role?.attachInlinePolicy(
+      new iam.Policy(this, "DynamoDBReadWritePolicy", {
+        statements: [
+          new iam.PolicyStatement({
+            actions: [
+              "dynamodb:ListTables",
+              "dynamodb:CreateTable",
+              "dynamodb:DescribeTable",
+              "dynamodb:PutItem",
+              "dynamodb:GetItem",
+              "dynamodb:UpdateItem",
+              "dynamodb:Query",
+            ],
+            resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/*`],
+            effect: iam.Effect.ALLOW,
+          }),
+        ],
+      })
+    );
+
+    // Bedrock permissions
+    const textGenBedrockPolicyStatement = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["bedrock:InvokeModel"],
+      resources: [
+        `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1`,
+        `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-embed-text-v2:0`,
+      ],
+    });
+    textGenLambdaDockerFunc.addToRolePolicy(textGenBedrockPolicyStatement);
+
+    // Secrets Manager access
+    textGenLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`],
+      })
+    );
+
+    // SSM Parameter access
+    textGenLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [
+          bedrockLLMParameter.parameterArn,
+          embeddingModelParameter.parameterArn,
+          tableNameParameter.parameterArn,
+        ],
+      })
+    );
+
 
     // Set the logical ID for OpenAPI reference
     const cfnLambda_researcher = lambdaResearcherFunction.node
