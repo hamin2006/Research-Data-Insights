@@ -2,7 +2,7 @@ import os
 import json
 import boto3
 import logging
-import psycopg2
+import psycopg
 from langchain_aws import BedrockEmbeddings
 
 from helpers.vectorstore import get_agenda_retriever
@@ -71,7 +71,7 @@ def initialize_constants():
 
 def connect_to_db():
     global connection
-    if connection is None or connection.closed:
+    if connection is None or connection.closed != 0:
         try:
             secret = get_secret(DB_SECRET_NAME)
             connection_params = {
@@ -82,7 +82,7 @@ def connect_to_db():
                 'port': secret["port"]
             }
             connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-            connection = psycopg2.connect(connection_string)
+            connection = psycopg.connect(connection_string)
             logger.info("Connected to the database!")
         except Exception as e:
             logger.error(f"Failed to connect to database: {e}")

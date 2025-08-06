@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-import psycopg2
+import psycopg
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 

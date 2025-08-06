@@ -4,5 +4,6 @@ langchain-community
 langchain-postgres
 langchain
 boto3
-psycopg[binary]
+psycopg[binary, pool]
+psycopg2-binary
 pydantic
