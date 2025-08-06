@@ -3,15 +3,11 @@ import tempfile
 import logging
 import uuid
 from io import BytesIO
-from typing import List
+from typing import List, Dict, Any
 import boto3
 from PyPDF2 import PdfReader
 from docx import Document
-from urllib.request import urlopen
-import re
-import traceback
 import pandas as pd
-import time
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 from langchain_aws import BedrockEmbeddings

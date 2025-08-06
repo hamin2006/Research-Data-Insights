@@ -10,3 +10,8 @@ sqlalchemy
 Pillow
 psycopg[binary,pool]
 psycopg2-binary
+PyPDF2
+python-docx
+pandas
+numpy
+uuid

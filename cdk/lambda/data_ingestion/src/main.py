@@ -3,7 +3,6 @@ import json
 import boto3
 import psycopg2
 import logging
-from datetime import datetime, timezone
 
 from helpers.vectorstore import update_vectorstore
 from langchain_aws import BedrockEmbeddings
@@ -77,10 +76,51 @@ def connect_to_db():
 def parse_s3_file_path(file_key):
     # Assuming the file path is of the format: agendas/{agenda_id}/{document_type}/{file_name}.{file_type}
     print(f"file_key: {file_key}")
+
     try:
         agenda_id, document_type, filename_with_ext = file_key.split('/')[1:]
         file_name, file_type = filename_with_ext.rsplit('.', 1)
-        return agenda_id, document_type, file_name, file_type
+
+        connection = connect_to_db()
+        if connection is None:
+            logger.error("Database connection failed. Unable to update ingestion status.")
+            return
+
+        try:
+            if document_type == "context_documents":
+                query = """
+                SELECT id_context_doc
+                FROM context_documents
+                WHERE file_path = %s;
+                """
+            elif document_type == "observation_documents":
+                query = """
+                SELECT id_research_observations
+                FROM research_observations
+                WHERE file_path = %s;
+                """
+            else:
+                raise ValueError(f"Unknown document type: {document_type}")
+
+            cur = connection.cursor()
+            cur.execute(query, (file_key,))
+            result = cur.fetchone()  # Returns (id,) or None
+
+            if result is None:
+                logger.warning(f"No document found with file_path: {file_key}")
+                return None
+
+            doc_id = result[0]  # Extract the ID from the tuple
+            cur.close()
+            return agenda_id, document_type, file_name, file_type, doc_id
+
+        except Exception as e:
+            if cur:
+                cur.close()
+            connection.rollback()
+            logger.error(f"Error pulling document ID from database: {e}")
+            raise
+
     except Exception as e:
         logger.error(f"Error parsing S3 file path: {e}")
         return {
@@ -91,7 +131,7 @@ def parse_s3_file_path(file_key):
 def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name):
     pass
 
-def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name):
+def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_id):
     # BedrockEmbeddings, get_secret, get_parameter, update_vectorstore
     embeddings = BedrockEmbeddings(
         model_id=get_parameter(), 
@@ -102,7 +142,7 @@ def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name):
     secret = get_secret()
 
     vectorstore_config_dict = {
-        'collection_name': f'agenda_{agenda_id}_{document_type}',
+        'collection_name': f'{doc_id}',
         'dbname': secret["dbname"],
         'user': secret["username"],
         'password': secret["password"],
@@ -144,15 +184,15 @@ def handler(event, context):
 
         # if event_name.startswith('ObjectCreated:'):
         # Parse the file path
-        agenda_id, document_type, file_name, file_type = parse_s3_file_path(file_key)
-        if not agenda_id or not document_type or not file_name or not file_type:
+        agenda_id, document_type, file_name, file_type, doc_id = parse_s3_file_path(file_key)
+        if not agenda_id or not document_type or not file_name or not file_type or not doc_id:
             return {
                 "statusCode": 400,
                 "body": json.dumps("Error parsing S3 file path.")
             }
 
         try:
-            update_vectorstore_from_s3(bucket_name, agenda_id, document_type, file_name)
+            update_vectorstore_from_s3(bucket_name, agenda_id, document_type, file_name, doc_id)
             logger.info(f"Vectorstore updated successfully for module for agenda {agenda_id} {document_type} {file_name}.")
         except Exception as e:
             logger.error(f"Error updating vectorstore for agenda {agenda_id} {document_type} {file_name}: {e}")

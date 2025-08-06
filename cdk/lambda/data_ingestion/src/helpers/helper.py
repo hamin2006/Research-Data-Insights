@@ -1,8 +1,7 @@
 import logging
 import boto3
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 import psycopg2
-
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain.indexes import SQLRecordManager
@@ -23,7 +22,7 @@ def get_vectorstore(
     password: str, 
     host: str, 
     port: int
-) -> Optional[PGVector]:
+) -> Optional[Tuple[PGVector, str]]:
     """
     Initialize and return a PGVector instance.
     """
@@ -65,11 +64,8 @@ def store_agenda_data(
     vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
     embeddings (BedrockEmbeddings): The embeddings instance.
     """
-    # Collection name format: agenda_{id}_{type}
-    collection_name = f"agenda_{agenda_id}_{document_type}"
-    
     vectorstore, connection_string = get_vectorstore(
-        collection_name=collection_name,
+        collection_name=vectorstore_config_dict['collection_name'],
         embeddings=embeddings,
         dbname=vectorstore_config_dict['dbname'],
         user=vectorstore_config_dict['user'],
