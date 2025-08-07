@@ -34,21 +34,20 @@ const cicdStack = new CICDStack(app, `${StackPrefix}-CICD`, {
   environmentName: environment,
   lambdaFunctions: [
     {
-      name: 'dataIngestion',
-      functionName: `${StackPrefix}-Api-DataIngestionLambdaDockerFunction`,
-      sourceDir: 'cdk/lambda/data_ingestion'
+      name: "dataIngestion",
+      functionName: `${StackPrefix}-Api-DataIngestionLambdaDockerFunc`,
+      sourceDir: "cdk/lambda/data_ingestion",
     },
     {
-      name: 'textGeneration',
+      name: "textGeneration",
       functionName: `${StackPrefix}-Api-TextGenLambdaDockerFunction`,
-      sourceDir: 'cdk/lambda/text_generation'
+      sourceDir: "cdk/lambda/text_generation",
     },
   ],
   pathFilters: [
     "cdk/lambda/data_ingestion/**",
-    "cdk/lambda/text_generation/**"  
+    "cdk/lambda/text_generation/**",
   ],
-
 });
 const apiStack = new ApiGatewayStack(
   app,
