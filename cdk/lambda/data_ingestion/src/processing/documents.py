@@ -198,7 +198,7 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
     record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
     """
     paginator = s3.get_paginator('list_objects_v2')
-    page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{agenda}/{document_type}/documents")
+    page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"agendas/{agenda}/{document_type}")
     all_doc_chunks = []
     
     for page in page_iterator:
