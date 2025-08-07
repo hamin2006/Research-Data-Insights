@@ -133,7 +133,10 @@ def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name)
     pass
 
 def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_id):
-    # BedrockEmbeddings, get_secret, get_parameter, update_vectorstore
+    logger.info(f"Starting vectorstore update for file: {file_name}")
+    logger.info(f"Bucket: {bucket}")
+    logger.info(f"Full path: agendas/{agenda_id}/{document_type}/{file_name}")
+    
     embeddings = BedrockEmbeddings(
         model_id=get_parameter(),
         client=bedrock_runtime,
@@ -160,8 +163,10 @@ def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
+        logger.info("Vectorstore update completed successfully")
     except Exception as e:
-        logger.error(f"Error updating vectorstore for agenda {agenda_id} {document_type} {file_name}: {e}")
+        logger.error(f"Error updating vectorstore: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
         raise
 
 def handler(event, context):
