@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import List, Dict, Any
 import boto3
 from PyPDF2 import PdfReader
-from docx
+import docx
 import pandas as pd
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
