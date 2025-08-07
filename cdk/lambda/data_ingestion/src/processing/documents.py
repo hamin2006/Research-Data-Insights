@@ -72,7 +72,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
     List[str]: A list of keys for the stored text files in the output bucket.
     """
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_file(bucket, f"{agenda}/{document_type}/documents/{filename}", tmp_file.name)
+        s3.download_file(bucket, f"agendas/{agenda}/{document_type}/{filename}", tmp_file.name)
         file_name, file_type = filename.rsplit('.', 1)
 
         if file_type.lower() == 'pdf':
@@ -83,7 +83,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                         text = page.extract_text().encode("utf8")
                         output_buffer.write(text)
                         output_buffer.write(bytes((12,)))
-                        page_output_key = f'{agenda}/{document_type}/documents/{filename}_page_{page_num}.txt'
+                        page_output_key = f'agendas/{agenda}/{document_type}/{filename}_page_{page_num}.txt'
 
                         with BytesIO(text) as page_output_buffer:
                             s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
@@ -94,16 +94,16 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                     text = para.text.encode("utf8")
                     output_buffer.write(text)
                     output_buffer.write(bytes((12,)))
-                    page_output_key = f'{agenda}/{document_type}/documents/{filename}_page_{page_num}.txt'
+                    page_output_key = f'agendas/{agenda}/{document_type}/{filename}_page_{page_num}.txt'
 
                     with BytesIO(text) as page_output_buffer:
                         s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
 
         os.remove(tmp_file.name)
 
-    return [f'{agenda}/{document_type}/documents/{filename}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
+    return [f'agendas/{agenda}/{document_type}/{filename}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
 
-def store_doc_chunks(bucket: str, filenames: List[str], vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
+def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
     """
     Store chunks of documents in the vectorstore.
     
@@ -136,7 +136,8 @@ def store_doc_chunks(bucket: str, filenames: List[str], vectorstore: PGVector, e
             if doc_chunk:
                 doc_chunk.metadata["source"] = f"s3://{bucket}/{true_filename}"
                 doc_chunk.metadata["doc_id"] = this_uuid
-                
+                doc_chunk.metadata["document_type"] = document_type
+
             else:
                 logger.warning(f"Empty chunk for {filename}")
         
@@ -177,6 +178,7 @@ def add_document(bucket: str, agenda: str, document_type: str, filename: str, ve
     this_doc_chunks = store_doc_chunks(
         bucket=output_bucket,
         filenames=output_filenames,
+        document_type=document_type,
         vectorstore=vectorstore,
         embeddings=embeddings
     )
