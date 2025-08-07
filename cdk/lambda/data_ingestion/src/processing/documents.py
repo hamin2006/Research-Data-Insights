@@ -71,6 +71,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
     Returns:
     List[str]: A list of keys for the stored text files in the output bucket.
     """
+    output_keys = []
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         s3.download_file(bucket, f"{filename}", tmp_file.name)
         file_name, file_type = filename.rsplit('.', 1)
@@ -84,7 +85,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                         output_buffer.write(text)
                         output_buffer.write(bytes((12,)))
                         page_output_key = f'{filename}_page_{page_num}.txt'
-
+                        output_keys.append(page_output_key)
                         with BytesIO(text) as page_output_buffer:
                             s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
         elif file_type.lower() == 'docx':
@@ -95,13 +96,13 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                     output_buffer.write(text)
                     output_buffer.write(bytes((12,)))
                     page_output_key = f'{filename}_page_{page_num}.txt'
-
+                    output_keys.append(page_output_key)
                     with BytesIO(text) as page_output_buffer:
                         s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
 
         os.remove(tmp_file.name)
 
-    return [f'{filename}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
+    return output_keys
 
 def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
     """
