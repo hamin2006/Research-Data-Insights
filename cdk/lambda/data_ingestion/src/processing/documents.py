@@ -72,11 +72,12 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
     List[str]: A list of keys for the stored text files in the output bucket.
     """
     try:
-        s3.head_object(Bucket=bucket, Key=f"agendas/{agenda}/{document_type}/{filename}")
+        file_path = f"agendas/{agenda}/{document_type}/{filename}"
+        s3.head_object(Bucket=bucket, Key=file_path)
     except s3.exceptions.ClientError as e:
-        logger.error(f"File not found in S3: {e}")
+        logger.error(f"File not found in S3 at {file_path}: {e}")
         return []
-        
+
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         s3.download_file(bucket, f"agendas/{agenda}/{document_type}/{filename}", tmp_file.name)
         file_name, file_type = filename.rsplit('.', 1)
