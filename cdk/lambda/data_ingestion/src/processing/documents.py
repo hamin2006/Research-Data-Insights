@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import List, Dict, Any
 import boto3
 from PyPDF2 import PdfReader
-from docx import Document
+from docx
 import pandas as pd
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
@@ -89,7 +89,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                         with BytesIO(text) as page_output_buffer:
                             s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
         elif file_type.lower() == 'docx':
-            doc = Document(tmp_file.name)
+            doc = docx.Document(tmp_file.name)
             with BytesIO() as output_buffer:
                 for page_num, para in enumerate(doc.paragraphs, start=1):
                     text = para.text.encode("utf8")
