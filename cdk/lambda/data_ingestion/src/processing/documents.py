@@ -71,15 +71,8 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
     Returns:
     List[str]: A list of keys for the stored text files in the output bucket.
     """
-    try:
-        file_path = f"agendas/{agenda}/{document_type}/{filename}"
-        s3.head_object(Bucket=bucket, Key=file_path)
-    except s3.exceptions.ClientError as e:
-        logger.error(f"File not found in S3 at {file_path}: {e}")
-        return []
-
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_file(bucket, f"agendas/{agenda}/{document_type}/{filename}", tmp_file.name)
+        s3.download_file(bucket, f"{filename}", tmp_file.name)
         file_name, file_type = filename.rsplit('.', 1)
 
         if file_type.lower() == 'pdf':
@@ -90,7 +83,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                         text = page.extract_text().encode("utf8")
                         output_buffer.write(text)
                         output_buffer.write(bytes((12,)))
-                        page_output_key = f'agendas/{agenda}/{document_type}/{filename}_page_{page_num}.txt'
+                        page_output_key = f'{filename}_page_{page_num}.txt'
 
                         with BytesIO(text) as page_output_buffer:
                             s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
@@ -101,14 +94,14 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                     text = para.text.encode("utf8")
                     output_buffer.write(text)
                     output_buffer.write(bytes((12,)))
-                    page_output_key = f'agendas/{agenda}/{document_type}/{filename}_page_{page_num}.txt'
+                    page_output_key = f'{filename}_page_{page_num}.txt'
 
                     with BytesIO(text) as page_output_buffer:
                         s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
 
         os.remove(tmp_file.name)
 
-    return [f'agendas/{agenda}/{document_type}/{filename}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
+    return [f'{filename}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
 
 def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
     """
