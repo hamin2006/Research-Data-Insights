@@ -1076,8 +1076,6 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    
-
     // Create the researcher function that the OpenAPI references
     const lambdaResearcherFunction = new lambda.Function(
       this,
@@ -1109,24 +1107,35 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     // Create parameters for Bedrock LLM ID, Embedding Model ID, and Table Name in Parameter Store
-    const bedrockLLMParameter = new ssm.StringParameter(this, "BedrockLLMParameter", {
-      parameterName: `/${id}/RDI/BedrockLLMId`,
-      description: "Parameter containing the Bedrock LLM ID",
-      stringValue: "meta.llama3-70b-instruct-v1:0",
-    });
+    const bedrockLLMParameter = new ssm.StringParameter(
+      this,
+      "BedrockLLMParameter",
+      {
+        parameterName: `/${id}/RDI/BedrockLLMId`,
+        description: "Parameter containing the Bedrock LLM ID",
+        stringValue: "meta.llama3-70b-instruct-v1:0",
+      }
+    );
 
-    const embeddingModelParameter = new ssm.StringParameter(this, "EmbeddingModelParameter", {
-      parameterName: `/${id}/RDI/EmbeddingModelId`,
-      description: "Parameter containing the Embedding Model ID",
-      stringValue: "amazon.titan-embed-text-v2:0",
-    });
+    const embeddingModelParameter = new ssm.StringParameter(
+      this,
+      "EmbeddingModelParameter",
+      {
+        parameterName: `/${id}/RDI/EmbeddingModelId`,
+        description: "Parameter containing the Embedding Model ID",
+        stringValue: "amazon.titan-embed-text-v2:0",
+      }
+    );
 
-    const tableNameParameter = new ssm.StringParameter(this, "TableNameParameter", {
-      parameterName: `/${id}/RDI/TableName`,
-      description: "Parameter containing the DynamoDB table name",
-      stringValue: "DynamoDB-Conversation-Table",
-    });
-
+    const tableNameParameter = new ssm.StringParameter(
+      this,
+      "TableNameParameter",
+      {
+        parameterName: `/${id}/RDI/TableName`,
+        description: "Parameter containing the DynamoDB table name",
+        stringValue: "DynamoDB-Conversation-Table",
+      }
+    );
 
     /**
      * Create Lambda with container image for text generation workflow in RAG pipeline
@@ -1182,7 +1191,9 @@ export class ApiGatewayStack extends cdk.Stack {
               "dynamodb:UpdateItem",
               "dynamodb:Query",
             ],
-            resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/*`],
+            resources: [
+              `arn:aws:dynamodb:${this.region}:${this.account}:table/*`,
+            ],
             effect: iam.Effect.ALLOW,
           }),
         ],
@@ -1206,7 +1217,9 @@ export class ApiGatewayStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["secretsmanager:GetSecretValue"],
-        resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+        ],
       })
     );
 
@@ -1222,7 +1235,6 @@ export class ApiGatewayStack extends cdk.Stack {
         ],
       })
     );
-
 
     // Set the logical ID for OpenAPI reference
     const cfnLambda_researcher = lambdaResearcherFunction.node
@@ -1253,6 +1265,7 @@ export class ApiGatewayStack extends cdk.Stack {
         timeout: cdk.Duration.seconds(600),
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-DataIngestionLambdaDockerFunc`,
+        description: "Handles document ingestion and embedding generation",
         environment: {
           SM_DB_CREDENTIALS: db.secretPathAdminName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpointAdmin,

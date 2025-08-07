@@ -1,7 +1,7 @@
 import os
 import tempfile
 import logging
-from random import uuid4
+import uuid
 from io import BytesIO
 from typing import List, Dict, Any
 import boto3
@@ -120,7 +120,7 @@ def store_doc_chunks(bucket: str, filenames: List[str], vectorstore: PGVector, e
     this_doc_chunks = []
 
     for filename in filenames:
-        this_uuid = str(uuid4()) # Generating one UUID for all chunks of from a specific page in the document
+        this_uuid = str(uuid.uuid4()) # Generating one UUID for all chunks of from a specific page in the document
         output_buffer = BytesIO()
         s3.download_fileobj(bucket, filename, output_buffer)
         output_buffer.seek(0)

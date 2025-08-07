@@ -44,21 +44,20 @@ export class CICDStack extends cdk.Stack {
       )
     );
 
-codeBuildRole.addToPolicy(
-  new iam.PolicyStatement({
-    effect: iam.Effect.ALLOW,
-    actions: [
-      "lambda:GetFunction",
-      "lambda:UpdateFunctionCode",
-      "lambda:UpdateFunctionConfiguration",
-    ],
-    resources: [
-      `arn:aws:lambda:${this.region}:${this.account}:function:*-TextGenLambdaDockerFunction`,
-      `arn:aws:lambda:${this.region}:${this.account}:function:*-DataIngestLambdaDockerFunction`,
-    ],
-  })
-);
-
+    codeBuildRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "lambda:GetFunction",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+        ],
+        resources: [
+          `arn:aws:lambda:${this.region}:${this.account}:function:*-TextGenLambdaDockerFunction`,
+          `arn:aws:lambda:${this.region}:${this.account}:function:*-DataIngestLambdaDockerFunction`,
+        ],
+      })
+    );
 
     // Create artifacts for pipeline
     const sourceOutput = new codepipeline.Artifact();
@@ -92,16 +91,16 @@ codeBuildRole.addToPolicy(
           trigger: codepipeline_actions.GitHubTrigger.WEBHOOK,
           ...(props.pathFilters
             ? {
-              filter: {
-                json: JSON.stringify({
-                  push: {
-                    paths: {
-                      includes: props.pathFilters,
+                filter: {
+                  json: JSON.stringify({
+                    push: {
+                      paths: {
+                        includes: props.pathFilters,
+                      },
                     },
-                  },
-                }),
-              },
-            }
+                  }),
+                },
+              }
             : {}),
         }),
       ],
@@ -211,11 +210,11 @@ codeBuildRole.addToPolicy(
               },
               post_build: {
                 commands: [
-                  'docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest',
-                  'docker push $REPOSITORY_URI:$IMAGE_TAG',
-                  'docker push $REPOSITORY_URI:latest',
+                  "docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest",
+                  "docker push $REPOSITORY_URI:$IMAGE_TAG",
+                  "docker push $REPOSITORY_URI:latest",
                   'echo "Waiting for vulnerability scan to complete..."',
-                  'sleep 30',
+                  "sleep 30",
                   `echo "Checking vulnerability scan results..."
 SCAN_RESULTS=$(aws ecr describe-image-scan-findings --repository-name $REPO_NAME --image-id imageTag=latest --query "imageScanFindingsSummary.findingCounts.CRITICAL" --output text 2>/dev/null || echo "0")
 if [ "$SCAN_RESULTS" != "0" ] && [ "$SCAN_RESULTS" != "None" ]; then
@@ -229,7 +228,7 @@ if aws lambda get-function --function-name $LAMBDA_FUNCTION_NAME &>/dev/null; th
   aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --image-uri $REPOSITORY_URI:latest
 else
   echo "Lambda function $LAMBDA_FUNCTION_NAME does not exist yet. Skipping update."
-fi`
+fi`,
                 ],
               },
             },
@@ -255,7 +254,5 @@ fi`
       stageName: "Build",
       actions: buildActions,
     });
-    
   }
-
 }
