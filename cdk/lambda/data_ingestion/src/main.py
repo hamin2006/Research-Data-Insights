@@ -112,6 +112,7 @@ def parse_s3_file_path(file_key):
 
             doc_id = result[0]  # Extract the ID from the tuple
             cur.close()
+            print(f"doc_id: {doc_id}")
             return agenda_id, document_type, file_name, file_type, doc_id
 
         except Exception as e:
@@ -175,6 +176,7 @@ def handler(event, context):
     for record in records:
         event_name = record['eventName']
         bucket_name = record['s3']['bucket']['name']
+        print(f"Processing event: {event_name} for bucket: {bucket_name}")
 
         # Only process files from the AILA_DATA_INGESTION_BUCKET
         if bucket_name != RDI_DATA_INGESTION_BUCKET:
