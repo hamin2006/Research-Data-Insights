@@ -100,7 +100,6 @@ def get_response(
 ) -> dict:
     """Generate a response to a research query using RAG with agenda-specific context."""
     
-    import logging
     logger = logging.getLogger()
     
     logger.info(f"get_response called with query: {query[:50]}...")
