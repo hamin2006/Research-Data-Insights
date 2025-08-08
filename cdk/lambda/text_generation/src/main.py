@@ -4,7 +4,7 @@ import boto3
 import logging
 import psycopg2
 from langchain_aws import BedrockEmbeddings
-from langchain.retrievers.merger import MergerRetriever
+from langchain.retrievers import MergerRetriever
 
 from helpers.vectorstore import get_agenda_retriever
 from helpers.chat import get_bedrock_llm, format_research_query, create_dynamodb_history_table, get_response, update_session_name
@@ -171,29 +171,16 @@ def handler(event, context):
         }
     
     try:
-        # Build two history-aware retrievers (context + observation)
-        history_ctx = get_agenda_retriever(
-            llm=llm,
-            agenda_id=agenda_id,
-            document_type="context",
-            vectorstore_config_dict=vectorstore_config_dict,
-            embeddings=embeddings,
+        history_aware_retriever = get_agenda_retriever(
+        llm=llm,
+        agenda_id=agenda_id,
+        document_type=document_type,  # This comes from query params
+        vectorstore_config_dict=vectorstore_config_dict,
+        embeddings=embeddings,
         )
-        history_obs = get_agenda_retriever(
-            llm=llm,
-            agenda_id=agenda_id,
-            document_type="observation",
-            vectorstore_config_dict=vectorstore_config_dict,
-            embeddings=embeddings,
-        )
-
-        # Merge them so retrieval pulls from both sources
-        history_aware_retriever = MergerRetriever(retrievers=[history_ctx, history_obs])
-        
-        probe = history_aware_retriever.get_relevant_documents("quick probe: what is this doc about?")
-        logger.info("RAG probe docs: %s", len(probe))
-        for i, d in enumerate(probe[:3]):
-            logger.info("DOC[%d] source=%s chars=%d", i, d.metadata.get("source"), len(d.page_content or ""))
+       # Test retrieval
+        probe = history_aware_retriever.get_relevant_documents("test query")
+        logger.info(f"RAG probe docs: {len(probe)}")
 
 
 

@@ -7,6 +7,7 @@ from langchain.chains import create_retrieval_chain
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.pydantic_v1 import BaseModel, Field  
+import logging
 
 class ResearchResponse(BaseModel):
     response: str = Field(description="AI response to the research query with insights from documents.")
