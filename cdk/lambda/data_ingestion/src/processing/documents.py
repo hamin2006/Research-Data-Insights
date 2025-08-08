@@ -22,25 +22,65 @@ s3 = boto3.client('s3')
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 
 # ---------- CONVERSION HELPERS ----------|
+def process_pdf(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
+    """Process PDF file and store text of each page in S3."""
+    output_keys = []
+    with open(tmp_file_path, 'rb') as file:
+        reader = PdfReader(file)
+        for page_num, page in enumerate(reader.pages, start=1):
+            text = page.extract_text().encode("utf8")
+            page_output_key = f'{filename}_page_{page_num}.txt'
+            output_keys.append(page_output_key)
+            with BytesIO(text) as page_output_buffer:
+                s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
+    return output_keys
 
-def convert_csv_to_text(csv_path):
-    df = pd.read_csv(csv_path, skiprows=[1])
+def process_docx(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
+    """Process DOCX file and store text of each paragraph in S3."""
+    output_keys = []
+    doc = docx.Document(tmp_file_path)
+    for page_num, para in enumerate(doc.paragraphs, start=1):
+        if not para.text.strip():  # Skip empty paragraphs
+            continue
+        text = para.text.encode("utf8")
+        page_output_key = f'{filename}_page_{page_num}.txt'
+        output_keys.append(page_output_key)
+        with BytesIO(text) as page_output_buffer:
+            s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
+    return output_keys
+
+def process_csv(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
+    """Process CSV file in chunks and store formatted text in S3."""
+    output_keys = []
+    df = pd.read_csv(tmp_file_path, skiprows=[1])
 
     # Detect and remove common prefix
     common_prefix = os.path.commonprefix(df.columns.tolist())
     clean_columns = [col.replace(common_prefix, '').strip(": ") for col in df.columns]
     df.columns = clean_columns
 
-    text_entries = []
-    for i, row in df.iterrows():
-        entry = []
-        for col in df.columns:
-            val = str(row[col]).strip()
-            if val and val.lower() != 'nan':
-                entry.append(f"{col}:\n{val}")
-        text_entries.append("\n\n".join(entry))
+    # Process in chunks of 100 rows
+    chunk_size = 100
+    for chunk_num, chunk_start in enumerate(range(0, len(df), chunk_size), start=1):
+        chunk_df = df.iloc[chunk_start:chunk_start + chunk_size]
+        
+        text_entries = []
+        for _, row in chunk_df.iterrows():
+            entry = []
+            for col in chunk_df.columns:
+                val = str(row[col]).strip()
+                if val and val.lower() != 'nan':
+                    entry.append(f"{col}:\n{val}")
+            text_entries.append("\n\n".join(entry))
+        
+        page_text = "\n\n---\n\n".join(text_entries).encode("utf8")
+        page_output_key = f'{filename}_page_{chunk_num}.txt'
+        output_keys.append(page_output_key)
+        
+        with BytesIO(page_text) as page_output_buffer:
+            s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
     
-    return "\n\n" + "\n\n---\n\n".join(text_entries)
+    return output_keys
 
 def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str, output_bucket: str) -> List[str]:
     """
@@ -62,58 +102,11 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
         file_name, file_type = filename.rsplit('.', 1)
 
         if file_type.lower() == 'pdf':
-            with open(tmp_file.name, 'rb') as file:
-                reader = PdfReader(file)
-                with BytesIO() as output_buffer:
-                    for page_num, page in enumerate(reader.pages, start=1):
-                        text = page.extract_text().encode("utf8")
-                        output_buffer.write(text)
-                        output_buffer.write(bytes((12,)))
-                        page_output_key = f'{filename}_page_{page_num}.txt'
-                        output_keys.append(page_output_key)
-                        with BytesIO(text) as page_output_buffer:
-                            s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
+            output_keys = process_pdf(tmp_file.name, filename, output_bucket)
         elif file_type.lower() == 'docx':
-            doc = docx.Document(tmp_file.name)
-            with BytesIO() as output_buffer:
-                for page_num, para in enumerate(doc.paragraphs, start=1):
-                    text = para.text.encode("utf8")
-                    output_buffer.write(text)
-                    output_buffer.write(bytes((12,)))
-                    page_output_key = f'{filename}_page_{page_num}.txt'
-                    output_keys.append(page_output_key)
-                    with BytesIO(text) as page_output_buffer:
-                        s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
-
+            output_keys = process_docx(tmp_file.name, filename, output_bucket)
         elif file_type.lower() == 'csv':
-            df = pd.read_csv(tmp_file.name, skiprows=[1])
-
-            # Detect and remove common prefix
-            common_prefix = os.path.commonprefix(df.columns.tolist())
-            clean_columns = [col.replace(common_prefix, '').strip(": ") for col in df.columns]
-            df.columns = clean_columns
-
-            # Process in chunks of 100 rows
-            chunk_size = 100
-            for chunk_num, chunk_start in enumerate(range(0, len(df), chunk_size), start=1):
-                chunk_df = df.iloc[chunk_start:chunk_start + chunk_size]
-                
-                text_entries = []
-                for _, row in chunk_df.iterrows():
-                    entry = []
-                    for col in chunk_df.columns:
-                        val = str(row[col]).strip()
-                        if val and val.lower() != 'nan':
-                            entry.append(f"{col}:\n{val}")
-                    text_entries.append("\n\n".join(entry))
-                
-                # Create page text and upload to S3
-                page_text = "\n\n---\n\n".join(text_entries).encode("utf8")
-                page_output_key = f'{filename}_page_{chunk_num}.txt'
-                output_keys.append(page_output_key)
-                
-                with BytesIO(page_text) as page_output_buffer:
-                    s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
+            output_keys = process_csv(tmp_file.name, filename, output_bucket)
 
         os.remove(tmp_file.name)
 
