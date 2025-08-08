@@ -18,7 +18,7 @@ def get_agenda_retriever(
     document_type: str,
     vectorstore_config_dict: Dict[str, str],
     embeddings
-) -> VectorStoreRetriever:
+):
     """Get retriever using correct collection names from database."""
     import psycopg2
     
