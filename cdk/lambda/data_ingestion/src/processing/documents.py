@@ -211,7 +211,7 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
             all_doc_chunks, 
             record_manager, 
             vectorstore, 
-            cleanup="full",
+            cleanup="index",
             source_id_key="source"
         )
         print(f"Indexing updates: \n {idx}")
@@ -221,7 +221,7 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
             [],
             record_manager, 
             vectorstore, 
-            cleanup="full",
+            cleanup="index",
             source_id_key="source"
         )
         logger.info("No documents found for indexing.")
