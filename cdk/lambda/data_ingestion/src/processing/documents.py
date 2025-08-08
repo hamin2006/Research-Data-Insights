@@ -84,7 +84,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                     output_keys.append(page_output_key)
                     with BytesIO(text) as page_output_buffer:
                         s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
-                        
+
         elif file_type.lower() == 'csv':
             df = pd.read_csv(tmp_file.name, skiprows=[1])
 
@@ -241,7 +241,7 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
             all_doc_chunks, 
             record_manager, 
             vectorstore, 
-            cleanup="index",
+            cleanup="incremental",
             source_id_key="source"
         )
         print(f"Indexing updates: \n {idx}")
@@ -251,7 +251,7 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
             [],
             record_manager, 
             vectorstore, 
-            cleanup="index",
+            cleanup="incremental",
             source_id_key="source"
         )
         logger.info("No documents found for indexing.")
