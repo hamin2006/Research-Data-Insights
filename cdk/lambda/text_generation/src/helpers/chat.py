@@ -88,6 +88,7 @@ def format_research_query(raw_query: str) -> str:
     """Format the user's research query."""
     return raw_query  # Simple formatting for research queries
 
+
 def get_response(
     query: str,
     agenda_id: str,
@@ -99,47 +100,45 @@ def get_response(
 ) -> dict:
     """Generate a response to a research query using RAG with agenda-specific context."""
     
-    # Get custom prompt from database
-    custom_prompt = get_custom_prompt(agenda_id, connection)
+    import logging
+    logger = logging.getLogger()
     
-    # Use custom prompt if available, otherwise use default
-    if custom_prompt:
-        system_prompt = custom_prompt
-    else:
-        system_prompt = (
-            "You are a research assistant analyzing documents for this research agenda. "
-            "Use the provided context documents and research observations to provide insights and answer questions. "
-            "Be analytical and cite specific information from the documents when possible. "
-            "If you cannot find relevant information in the provided context, say so clearly."
-            "\n\nContext Documents:\n{context}"
-        )
+    logger.info(f"get_response called with query: {query[:50]}...")
     
-    qa_prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ])
-    
-    question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-
-    conversational_rag_chain = RunnableWithMessageHistory(
-        rag_chain,
-        lambda session_id: DynamoDBChatMessageHistory(
-            table_name=table_name, 
-            session_id=session_id
-        ),
-        input_messages_key="input",
-        history_messages_key="chat_history",
-        output_messages_key="answer",
-    )
-    
-    response = generate_response(conversational_rag_chain, query, session_id)
-    
-    return {
-        "response": response,
-        "agenda_id": agenda_id
-    }
+    try:
+        # Test retriever first
+        docs = history_aware_retriever.get_relevant_documents(query)
+        logger.info(f"Retrieved {len(docs)} documents")
+        for i, doc in enumerate(docs[:2]):
+            logger.info(f"Doc {i}: {len(doc.page_content)} chars, source: {doc.metadata.get('source', 'unknown')}")
+        
+        if not docs:
+            logger.warning("No documents retrieved - returning fallback response")
+            return {
+                "response": "I don't have access to any relevant documents for this research agenda. Please ensure documents have been uploaded and processed.",
+                "agenda_id": agenda_id
+            }
+        
+        # Simple approach - just use documents directly
+        context = "\n\n".join([doc.page_content for doc in docs[:3]])
+        
+        prompt = f"""You are a research assistant. Answer based on the context provided. Context: {context} Question: {query} Answer:"""
+        
+        logger.info("Calling LLM...")
+        response = llm.invoke(prompt)
+        logger.info(f"LLM response: {response.content[:100]}...")
+        
+        return {
+            "response": response.content,
+            "agenda_id": agenda_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in get_response: {e}")
+        return {
+            "response": f"Error: {str(e)}",
+            "agenda_id": agenda_id
+        }
 
 
 def generate_response(conversational_rag_chain: object, query: str, session_id: str) -> str:
@@ -189,91 +188,51 @@ def split_into_sentences(paragraph: str) -> list[str]:
     sentences = re.split(sentence_endings, paragraph)
     return sentences
 
+
+
 def update_session_name(table_name: str, session_id: str, bedrock_llm_id: str) -> str:
-    """
-    Check if both the LLM and the student have exchanged exactly one message each.
-    If so, generate and return a session name using the content of the student's first message
-    and the LLM's first response. Otherwise, return None.
-
-    Args:
-    session_id (str): The unique ID for the session.
-    table_name (str): The DynamoDB table name where the conversation history is stored.
-
-    Returns:
-    str: The updated session name if conditions are met, otherwise None.
-    """
+    """Generate session name from first exchange."""
     
     dynamodb_client = boto3.client("dynamodb")
     
-    # Retrieve the conversation history from the DynamoDB table
     try:
         response = dynamodb_client.get_item(
             TableName=table_name,
-            Key={
-                'SessionId': {
-                    'S': session_id
-                }
-            }
+            Key={'SessionId': {'S': session_id}}
         )
+        
+        history = response.get('Item', {}).get('History', {}).get('L', [])
+        
+        if len(history) < 2:
+            return None
+            
+        # Just use first human and AI messages
+        human_msg = None
+        ai_msg = None
+        
+        for item in history:
+            msg_type = item.get('M', {}).get('type', {}).get('S')
+            content = item.get('M', {}).get('data', {}).get('M', {}).get('content', {}).get('S', '')
+            
+            if msg_type == 'human' and not human_msg:
+                human_msg = content
+            elif msg_type == 'ai' and not ai_msg:
+                ai_msg = content
+                
+            if human_msg and ai_msg:
+                break
+        
+        if not human_msg or not ai_msg:
+            return None
+            
+        # Generate simple name
+        llm = BedrockLLM(model_id=bedrock_llm_id)
+        prompt = f"Generate a short chat name (max 25 chars) for this conversation:\nUser: {human_msg[:100]}\nAI: {ai_msg[:100]}\nName:"
+        
+        session_name = llm.invoke(prompt)
+        return session_name[:25]  # Truncate to 25 chars
+        
     except Exception as e:
-        print(f"Error fetching conversation history from DynamoDB: {e}")
+        print(f"Error updating session name: {e}")
         return None
 
-    history = response.get('Item', {}).get('History', {}).get('L', [])
-
-
-
-    human_messages = []
-    ai_messages = []
-    
-    # Find the first human and ai messages in the history
-    # Check if length of human messages is 2 since the prompt counts as 1
-    # Check if length of AI messages is 2 since after first response by student, another response is generated
-    for item in history:
-        message_type = item.get('M', {}).get('data', {}).get('M', {}).get('type', {}).get('S')
-        
-        if message_type == 'human':
-            human_messages.append(item)
-            if len(human_messages) > 2:
-                print("More than one student message found; not the first exchange.")
-                return None
-        
-        elif message_type == 'ai':
-            ai_messages.append(item)
-            if len(ai_messages) > 2:
-                print("More than one AI message found; not the first exchange.")
-                return None
-
-    if len(human_messages) != 2 or len(ai_messages) != 2:
-        print("Not a complete first exchange between the LLM and student.")
-        return None
-    
-    student_message = human_messages[0].get('M', {}).get('data', {}).get('M', {}).get('content', {}).get('S', "")
-    llm_message = ai_messages[0].get('M', {}).get('data', {}).get('M', {}).get('content', {}).get('S', "")
-    
-    llm = BedrockLLM(
-                        model_id = bedrock_llm_id
-                    )
-    
-    system_prompt = """
-        You are given the first message from an AI and the first message from a student in a conversation. 
-        Based on these two messages, come up with a name that describes the conversation. 
-        The name should be less than 30 characters. ONLY OUTPUT THE NAME YOU GENERATED. NO OTHER TEXT.
-    """
-    
-    prompt = f"""
-        <|begin_of_text|>
-        <|start_header_id|>system<|end_header_id|>
-        {system_prompt}
-        <|eot_id|>
-        <|start_header_id|>AI Message<|end_header_id|>
-        {llm_message}
-        <|eot_id|>
-        <|start_header_id|>Student Message<|end_header_id|>
-        {student_message}
-        <|eot_id|>
-        <|start_header_id|>assistant<|end_header_id|>
-    """
-    
-    session_name = llm.invoke(prompt)
-    return session_name

@@ -295,6 +295,91 @@ exports.handler = async (event) => {
         break;
       }
 
+      // Add these cases to your switch statement:
+
+      case "GET /agenda/{agenda_id}/sessions": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
+
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
+
+        const userRow = await sqlConnection`
+    SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+  `;
+
+        const sessions = await sqlConnection`
+    SELECT id_chat_session, session_name, created_at, updated_at
+    FROM chat_sessions 
+    WHERE research_agenda_id = ${agenda_id} AND user_id = ${userRow[0].user_id}
+    ORDER BY updated_at DESC
+  `;
+
+        response.body = JSON.stringify(sessions);
+        break;
+      }
+
+      case "POST /agenda/{agenda_id}/sessions": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
+        const body = JSON.parse(event.body || "{}");
+        const { session_name } = body;
+
+        const userRow = await sqlConnection`
+    SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+  `;
+
+        const result = await sqlConnection`
+    INSERT INTO chat_sessions (research_agenda_id, user_id, session_name)
+    VALUES (${agenda_id}, ${userRow[0].user_id}, ${session_name})
+    RETURNING id_chat_session, session_name, created_at
+  `;
+
+        response.body = JSON.stringify(result[0]);
+        break;
+      }
+
+      case "GET /agenda/{agenda_id}/sessions/{session_id}/messages": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const { agenda_id, session_id } = event.pathParameters;
+
+        const userRow = await sqlConnection`
+    SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+  `;
+
+        const interactions = await sqlConnection`
+    SELECT ui.query_text, ui.response_text, ui.timestamp
+    FROM user_interactions ui
+    JOIN chat_sessions cs ON ui.chat_session_id = cs.id_chat_session
+    WHERE cs.id_chat_session = ${session_id} 
+    AND cs.user_id = ${userRow[0].user_id} 
+    AND cs.research_agenda_id = ${agenda_id}
+    ORDER BY ui.timestamp ASC
+  `;
+
+        const messages = [];
+        interactions.forEach((row, index) => {
+          messages.push({
+            id: index * 2 + 1,
+            content: row.query_text,
+            sender: "user",
+            timestamp: row.timestamp,
+          });
+          if (row.response_text) {
+            messages.push({
+              id: index * 2 + 2,
+              content: row.response_text,
+              sender: "ai",
+              timestamp: row.timestamp,
+            });
+          }
+        });
+
+        response.body = JSON.stringify(messages);
+        break;
+      }
+
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }

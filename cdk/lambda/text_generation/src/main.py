@@ -2,8 +2,9 @@ import os
 import json
 import boto3
 import logging
-import psycopg
+import psycopg2
 from langchain_aws import BedrockEmbeddings
+from langchain.retrievers.merger import MergerRetriever
 
 from helpers.vectorstore import get_agenda_retriever
 from helpers.chat import get_bedrock_llm, format_research_query, create_dynamodb_history_table, get_response, update_session_name
@@ -71,7 +72,7 @@ def initialize_constants():
 
 def connect_to_db():
     global connection
-    if connection is None or connection.closed != 0:
+    if connection is None or connection.closed:
         try:
             secret = get_secret(DB_SECRET_NAME)
             connection_params = {
@@ -82,20 +83,23 @@ def connect_to_db():
                 'port': secret["port"]
             }
             connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-            connection = psycopg.connect(connection_string)
+            connection = psycopg2.connect(connection_string)
             logger.info("Connected to the database!")
         except Exception as e:
             logger.error(f"Failed to connect to database: {e}")
             raise
     return connection
-
+    
 def handler(event, context):
     logger.info("Research RAG Lambda function is called!")
+    logger.info(event)
     initialize_constants()
 
+
     query_params = event.get("queryStringParameters", {})
+    path_params = event.get("pathParameters", {})
     
-    agenda_id = query_params.get("agenda_id", "")
+    agenda_id = path_params.get("agenda_id", "")
     session_id = query_params.get("session_id", "")
     document_type = query_params.get("document_type", "context")  # default to context docs
 
@@ -158,6 +162,7 @@ def handler(event, context):
             'host': RDS_PROXY_ENDPOINT,
             'port': db_secret["port"]
         }
+        
     except Exception as e:
         logger.error(f"Error retrieving vectorstore config: {e}")
         return {
@@ -166,19 +171,39 @@ def handler(event, context):
         }
     
     try:
-        history_aware_retriever = get_agenda_retriever(
+        # Build two history-aware retrievers (context + observation)
+        history_ctx = get_agenda_retriever(
             llm=llm,
             agenda_id=agenda_id,
-            document_type=document_type,
+            document_type="context",
             vectorstore_config_dict=vectorstore_config_dict,
-            embeddings=embeddings
+            embeddings=embeddings,
         )
+        history_obs = get_agenda_retriever(
+            llm=llm,
+            agenda_id=agenda_id,
+            document_type="observation",
+            vectorstore_config_dict=vectorstore_config_dict,
+            embeddings=embeddings,
+        )
+
+        # Merge them so retrieval pulls from both sources
+        history_aware_retriever = MergerRetriever(retrievers=[history_ctx, history_obs])
+        
+        probe = history_aware_retriever.get_relevant_documents("quick probe: what is this doc about?")
+        logger.info("RAG probe docs: %s", len(probe))
+        for i, d in enumerate(probe[:3]):
+            logger.info("DOC[%d] source=%s chars=%d", i, d.metadata.get("source"), len(d.page_content or ""))
+
+
+
     except Exception as e:
         logger.error(f"Error creating history-aware retriever: {e}")
         return {
             'statusCode': 500,
             'body': json.dumps('Error creating history-aware retriever')
         }
+
     
     try:
         connection = connect_to_db()
@@ -191,6 +216,57 @@ def handler(event, context):
             session_id=session_id,
             connection=connection
         )
+        
+        try:
+            user_cognito_id = (
+                event.get("requestContext", {})
+                    .get("authorizer", {})
+                    .get("userId")
+            )
+
+            with connection.cursor() as cur:
+                user_id = None
+                if user_cognito_id:
+                    cur.execute(
+                        'SELECT user_id FROM users WHERE cognito_id = %s LIMIT 1',
+                        (user_cognito_id,)
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        user_id = row[0]
+
+                # Insert the interaction (query + response)
+                cur.execute(
+                    """
+                    INSERT INTO user_interactions
+                    (user_id, research_agenda_id, chat_session_id,
+                    query_text, response_text, model_used, temperature)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        user_id,               # can be None if not found
+                        agenda_id,
+                        session_id,
+                        question,              # original user message
+                        response.get("response", ""),  # LLM answer text
+                        BEDROCK_LLM_ID,
+                        0                      # your temperature
+                    )
+                )
+
+                # Keep sessions ordered by last activity
+                cur.execute(
+                    "UPDATE chat_sessions SET updated_at = now() WHERE id_chat_session = %s",
+                    (session_id,)
+                )
+
+            connection.commit()
+            logger.info("Saved user_interactions row and updated chat_sessions.updated_at")
+        except Exception as e:
+            connection.rollback()
+            logger.error(f"Failed to save interaction: {e}")
+        # --- END SAVE TURN ---
+
     except Exception as e:
         logger.error(f"Error getting response: {e}")
         return {

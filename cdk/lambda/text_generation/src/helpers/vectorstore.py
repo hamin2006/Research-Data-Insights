@@ -1,62 +1,78 @@
-from typing import Dict
-
-from langchain_core.vectorstores import VectorStoreRetriever
+from typing import Dict, List
+from langchain.retrievers import MergerRetriever
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever
-
 from helpers.helper import get_vectorstore
+
+def _history_aware(llm, retriever):
+    contextualize_q_prompt = ChatPromptTemplate.from_messages([
+        ("system", "Given chat history and the latest question, rewrite it as a standalone question."),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ])
+    return create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
 
 def get_agenda_retriever(
     llm,
     agenda_id: str,
-    document_type: str,  # "context" or "observation"
+    document_type: str,
     vectorstore_config_dict: Dict[str, str],
-    embeddings  # BedrockEmbeddings
+    embeddings
 ) -> VectorStoreRetriever:
-    """
-    Retrieve the vectorstore for a specific agenda and document type, return history-aware retriever.
-
-    Args:
-    llm: The language model instance used to generate the response.
-    agenda_id (str): The research agenda ID.
-    document_type (str): The document type ("context" or "observation").
-    vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
-    embeddings (BedrockEmbeddings): The embeddings instance used to process the documents.
-
-    Returns:
-    VectorStoreRetriever: A history-aware retriever instance.
-    """
-    # Create collection name for this agenda and document type
-    collection_name = f"agenda_{agenda_id}_{document_type}"
+    """Get retriever using correct collection names from database."""
+    import psycopg2
     
-    vectorstore, _ = get_vectorstore(
-        collection_name=collection_name,
-        embeddings=embeddings,
-        dbname=vectorstore_config_dict['dbname'],
-        user=vectorstore_config_dict['user'],
-        password=vectorstore_config_dict['password'],
-        host=vectorstore_config_dict['host'],
-        port=int(vectorstore_config_dict['port'])
-    )
-
-    retriever = vectorstore.as_retriever()
-
-    # Contextualize question for research queries
-    contextualize_q_system_prompt = (
-        "Given a chat history and the latest research question "
-        "which might reference context in the chat history, "
-        "formulate a standalone question which can be understood "
-        "without the chat history. Do NOT answer the question, "
-        "just reformulate it if needed and otherwise return it as is."
-    )
-    contextualize_q_prompt = ChatPromptTemplate.from_messages([
-        ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ])
-    
-    history_aware_retriever = create_history_aware_retriever(
-        llm, retriever, contextualize_q_prompt
-    )
-
-    return history_aware_retriever
+    try:
+        # Get document IDs from database
+        conn = psycopg2.connect(
+            dbname=vectorstore_config_dict['dbname'],
+            user=vectorstore_config_dict['user'],
+            password=vectorstore_config_dict['password'],
+            host=vectorstore_config_dict['host'],
+            port=int(vectorstore_config_dict['port'])
+        )
+        cur = conn.cursor()
+        
+        if document_type == "context":
+            cur.execute("SELECT id_context_doc FROM context_documents WHERE research_agenda_id = %s", (agenda_id,))
+        else:
+            cur.execute("SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s", (agenda_id,))
+        
+        doc_ids = [str(row[0]) for row in cur.fetchall()]
+        cur.close()
+        conn.close()
+        
+        if not doc_ids:
+            # Return empty retriever
+            from langchain_core.vectorstores import VectorStore
+            class EmptyVectorStore(VectorStore):
+                def similarity_search(self, query, k=4, **kwargs):
+                    return []
+                def get_relevant_documents(self, query):
+                    return []
+            return EmptyVectorStore().as_retriever()
+        
+        # Use first document's collection
+        collection_name = doc_ids[0]
+        
+        vectorstore, _ = get_vectorstore(
+            collection_name=collection_name,
+            embeddings=embeddings,
+            dbname=vectorstore_config_dict['dbname'],
+            user=vectorstore_config_dict['user'],
+            password=vectorstore_config_dict['password'],
+            host=vectorstore_config_dict['host'],
+            port=int(vectorstore_config_dict['port'])
+        )
+        
+        return vectorstore.as_retriever()
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        from langchain_core.vectorstores import VectorStore
+        class EmptyVectorStore(VectorStore):
+            def similarity_search(self, query, k=4, **kwargs):
+                return []
+            def get_relevant_documents(self, query):
+                return []
+        return EmptyVectorStore().as_retriever()
