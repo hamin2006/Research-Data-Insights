@@ -84,6 +84,36 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
                     output_keys.append(page_output_key)
                     with BytesIO(text) as page_output_buffer:
                         s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
+                        
+        elif file_type.lower() == 'csv':
+            df = pd.read_csv(tmp_file.name, skiprows=[1])
+
+            # Detect and remove common prefix
+            common_prefix = os.path.commonprefix(df.columns.tolist())
+            clean_columns = [col.replace(common_prefix, '').strip(": ") for col in df.columns]
+            df.columns = clean_columns
+
+            # Process in chunks of 100 rows
+            chunk_size = 100
+            for chunk_num, chunk_start in enumerate(range(0, len(df), chunk_size), start=1):
+                chunk_df = df.iloc[chunk_start:chunk_start + chunk_size]
+                
+                text_entries = []
+                for _, row in chunk_df.iterrows():
+                    entry = []
+                    for col in chunk_df.columns:
+                        val = str(row[col]).strip()
+                        if val and val.lower() != 'nan':
+                            entry.append(f"{col}:\n{val}")
+                    text_entries.append("\n\n".join(entry))
+                
+                # Create page text and upload to S3
+                page_text = "\n\n---\n\n".join(text_entries).encode("utf8")
+                page_output_key = f'{filename}_page_{chunk_num}.txt'
+                output_keys.append(page_output_key)
+                
+                with BytesIO(page_text) as page_output_buffer:
+                    s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
 
         os.remove(tmp_file.name)
 
