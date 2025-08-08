@@ -29,8 +29,13 @@ import {
   SmartToy,
   Person,
 } from "@mui/icons-material";
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { useParams } from 'react-router-dom';
 
 export default function ChatTab() {
+  const { agendaId } = useParams(); 
+  const [sessionId, setSessionId] = useState(null); // Change from fixed string
+  const [chatSessions, setChatSessions] = useState([]);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
     {
@@ -43,28 +48,140 @@ export default function ChatTab() {
   ]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatSessionsOpen, setIsChatSessionsOpen] = useState(false);
-  const [chatSessions, setChatSessions] = useState([
-    { id: 1, title: "Spatial Empathy Analysis", date: new Date() },
-    { id: 2, title: "Geography Based Empathy", date: new Date() },
-  ]);
   const [currentSession, setCurrentSession] = useState(1);
   const [selectedModel, setSelectedModel] = useState("Meta Llama 3 8b");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const contextDocuments = [
-    { id: 1, name: "Document 1: Spatial Empathy Description", checked: true },
-    { id: 2, name: "Document 2: Survey Questions", checked: true },
-    { id: 3, name: "Document 3: Survey Audio", checked: true },
-    { id: 4, name: "Document 4: More Context", checked: false },
-  ];
+  const [contextDocuments, setContextDocuments] = useState([]);
+  const [responseGroups, setResponseGroups] = useState([]);
+  const [selectedDocumentType, setSelectedDocumentType] = useState('context'); // 'context' or 'observation'
+  
+  useEffect(() => {
+  const fetchSessions = async () => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
 
-  const responseGroups = [
-    { id: 1, name: "Response Group 1", checked: true },
-    { id: 2, name: "Response Group 2", checked: true },
-    { id: 3, name: "Response Group 3", checked: true },
-    { id: 4, name: "Response Group 4", checked: false },
-  ];
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`, {
+        headers: { Authorization: token }
+      });
+
+      if (response.ok) {
+        const sessions = await response.json();
+        setChatSessions(sessions);
+        if (sessions.length > 0 && !sessionId) {
+          setSessionId(sessions[0].id_chat_session);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+    }
+  };
+
+  if (agendaId) {
+    fetchSessions();
+  }
+}, [agendaId]);
+
+const createNewSession = async () => {
+  try {
+    const session = await fetchAuthSession();
+    const token = session.tokens.idToken;
+
+    const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`, {
+      method: 'POST',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ session_name: 'New Chat Session' })
+    });
+
+    if (response.ok) {
+      const newSession = await response.json();
+      setSessionId(newSession.id_chat_session);
+      setChatSessions(prev => [newSession, ...prev]);
+      setMessages([{
+        id: 1,
+        content: "Hello! I'm your AI assistant for research analysis. How can I help you today?",
+        sender: "ai",
+        timestamp: new Date(),
+      }]);
+      setIsChatSessionsOpen(false);
+    }
+  } catch (error) {
+    console.error('Error creating session:', error);
+  }
+};
+
+const loadSession = async (sessionId) => {
+  try {
+    const session = await fetchAuthSession();
+    const token = session.tokens.idToken;
+
+    const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions/${sessionId}/messages`, {
+      headers: { Authorization: token }
+    });
+
+    if (response.ok) {
+      const sessionMessages = await response.json();
+      console.log(sessionMessages);
+      setMessages(sessionMessages.length > 0 ? sessionMessages : [{
+        id: 1,
+        content: "Hello! I'm your AI assistant for research analysis. How can I help you today?",
+        sender: "ai",
+        timestamp: new Date(),
+      }]);
+      setSessionId(sessionId);
+      setIsChatSessionsOpen(false);
+    }
+  } catch (error) {
+    console.error('Error loading session:', error);
+  }
+};
+
+  // Fetch actual documents on component mount
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
+          headers: {
+            Authorization: token,
+          }
+        });
+
+        const agendaData = await response.json();
+        
+        // Set context documents
+        const contextDocs = agendaData.context_documents?.map(doc => ({
+          id: doc.id_context_doc,
+          name: doc.document_name,
+          description: doc.description,
+          checked: true // Default to checked
+        })) || [];
+
+        // Set response groups (research observations)
+        const responseObs = agendaData.research_observations?.map(obs => ({
+          id: obs.id_research_observations,
+          name: obs.document_name,
+          checked: true // Default to checked
+        })) || [];
+
+        setContextDocuments(contextDocs);
+        setResponseGroups(responseObs);
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+      }
+    };
+
+    if (agendaId) {
+      fetchDocuments();
+    }
+  }, [agendaId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -88,19 +205,45 @@ export default function ChatTab() {
     setMessage("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/text_generation?session_id=${sessionId}&document_type=${selectedDocumentType}&agenda_id=${agendaId}`, {
+        method: "POST",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message_content: message
+        })
+      });
+
+      const result = await response.json();
+      
       const aiMessage = {
         id: messages.length + 2,
-        content: `I understand you're asking about "${message}". Based on the spatial empathy context and the selected response groups, I can help analyze this from multiple perspectives. Would you like me to dive deeper into any specific aspect?`,
+        content: result.response || result.llm_output || "I couldn't process your request.",
         sender: "ai",
         timestamp: new Date(),
       };
+      
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('RAG query failed:', error);
+      const errorMessage = {
+        id: messages.length + 2,
+        content: "Sorry, I encountered an error processing your request. Please try again.",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
-
+  
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -461,7 +604,7 @@ export default function ChatTab() {
           >
             <Button
               variant="contained"
-              onClick={() => {}}
+              onClick={createNewSession}
               startIcon={<Add />}
               sx={{
                 backgroundColor: "transparent",
@@ -480,29 +623,21 @@ export default function ChatTab() {
           </Box>
           <List>
             {chatSessions.map((session) => (
-              <>
-                <ListItem key={session.id}>
-                  <ListItemButton
-                    onClick={() => {
-                      setIsChatSessionsOpen(false);
-                      setCurrentSession(session.id);
-                    }}
-                    sx={{
-                      backgroundColor:
-                        currentSession === session.id
-                          ? "rgba(139, 92, 246, 0.1)"
-                          : "transparent",
-                    }}
-                  >
-                    <ListItemText
-                      primary={session.title}
-                      secondary={formatTime(session.date)}
-                    />
-                  </ListItemButton>
-                </ListItem>
-                <Divider sx={{ mx: 2 }} />
-              </>
-            ))}
+  <ListItem key={session.id_chat_session}> {/* Change key */}
+    <ListItemButton
+      onClick={() => loadSession(session.id_chat_session)} // Change onClick
+      sx={{
+        backgroundColor:
+          sessionId === session.id_chat_session ? "rgba(139, 92, 246, 0.1)" : "transparent", // Change condition
+      }}
+    >
+      <ListItemText
+        primary={session.session_name} 
+        secondary={formatTime(new Date(session.created_at))} 
+      />
+    </ListItemButton>
+  </ListItem>
+))}
           </List>
           ;
         </Box>
