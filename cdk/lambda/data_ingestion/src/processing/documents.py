@@ -21,22 +21,7 @@ s3 = boto3.client('s3')
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 
-# ---------- CONVERSION HELPERS ----------
-
-def convert_pdf_to_text(pdf_path):
-    text = ''
-    with open(pdf_path, 'rb') as file:
-        reader = PdfReader(file)
-        for page in reader.pages:
-            text += page.extract_text() + '\n'
-    return text
-
-def convert_docx_to_text(docx_path):
-    text = ''
-    doc = Document(docx_path)
-    for para in doc.paragraphs:
-        text += para.text + '\n'
-    return text
+# ---------- CONVERSION HELPERS ----------|
 
 def convert_csv_to_text(csv_path):
     df = pd.read_csv(csv_path, skiprows=[1])
@@ -201,7 +186,7 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
     record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
     """
     paginator = s3.get_paginator('list_objects_v2')
-    page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"agendas/{agenda}/{document_type}")
+    page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"agendas/{agenda}/{document_type}/{file_name}")
     all_doc_chunks = []
     
     for page in page_iterator:
