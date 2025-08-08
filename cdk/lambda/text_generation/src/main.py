@@ -172,23 +172,40 @@ def handler(event, context):
     
     try:
         history_aware_retriever = get_agenda_retriever(
-        llm=llm,
-        agenda_id=agenda_id,
-        document_type=document_type,  # This comes from query params
-        vectorstore_config_dict=vectorstore_config_dict,
-        embeddings=embeddings,
+            llm=llm,
+            agenda_id=agenda_id,
+            document_type=document_type,
+            vectorstore_config_dict=vectorstore_config_dict,
+            embeddings=embeddings,
         )
-       # Test retrieval
+        
+        # Check if retriever was created successfully
+        if history_aware_retriever is None:
+            logger.warning(f"No documents found for agenda {agenda_id}, type {document_type}")
+            return {
+                'statusCode': 200,
+                'headers': {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps({
+                    "session_name": "Research Chat",
+                    "response": "No documents have been uploaded for this research agenda yet. Please upload some documents first.",
+                    "agenda_id": agenda_id
+                })
+            }
+    
+        # Test retrieval
         probe = history_aware_retriever.get_relevant_documents("test query")
         logger.info(f"RAG probe docs: {len(probe)}")
 
-
-
     except Exception as e:
-        logger.error(f"Error creating history-aware retriever: {e}")
+        logger.error(f"Error creating retriever: {e}")
         return {
             'statusCode': 500,
-            'body': json.dumps('Error creating history-aware retriever')
+            'body': json.dumps('Error creating retriever')
         }
 
     

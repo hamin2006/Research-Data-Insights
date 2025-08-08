@@ -1,16 +1,24 @@
-from typing import Dict, List
-from langchain.retrievers import MergerRetriever
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever
+from typing import Dict
 from helpers.helper import get_vectorstore
 
-def _history_aware(llm, retriever):
-    contextualize_q_prompt = ChatPromptTemplate.from_messages([
-        ("system", "Given chat history and the latest question, rewrite it as a standalone question."),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ])
-    return create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
+def get_vectorstore_retriever(
+    llm,
+    vectorstore_config_dict: Dict[str, str],
+    embeddings
+):
+    """Simple vectorstore retriever without complex history awareness."""
+    
+    vectorstore, _ = get_vectorstore(
+        collection_name=vectorstore_config_dict['collection_name'],
+        embeddings=embeddings,
+        dbname=vectorstore_config_dict['dbname'],
+        user=vectorstore_config_dict['user'],
+        password=vectorstore_config_dict['password'],
+        host=vectorstore_config_dict['host'],
+        port=int(vectorstore_config_dict['port'])
+    )
+    
+    return vectorstore.as_retriever()
 
 def get_agenda_retriever(
     llm,
@@ -19,7 +27,7 @@ def get_agenda_retriever(
     vectorstore_config_dict: Dict[str, str],
     embeddings
 ):
-    """Get retriever using correct collection names from database."""
+    """Get retriever for agenda documents."""
     import psycopg2
     
     try:
@@ -43,36 +51,19 @@ def get_agenda_retriever(
         conn.close()
         
         if not doc_ids:
-            # Return empty retriever
-            from langchain_core.vectorstores import VectorStore
-            class EmptyVectorStore(VectorStore):
-                def similarity_search(self, query, k=4, **kwargs):
-                    return []
-                def get_relevant_documents(self, query):
-                    return []
-            return EmptyVectorStore().as_retriever()
+            print(f"No documents found for agenda {agenda_id}, type {document_type}")
+            return None
         
         # Use first document's collection
         collection_name = doc_ids[0]
+        print(f"Using collection: {collection_name}")
         
-        vectorstore, _ = get_vectorstore(
-            collection_name=collection_name,
-            embeddings=embeddings,
-            dbname=vectorstore_config_dict['dbname'],
-            user=vectorstore_config_dict['user'],
-            password=vectorstore_config_dict['password'],
-            host=vectorstore_config_dict['host'],
-            port=int(vectorstore_config_dict['port'])
-        )
+        # Update config with collection name
+        config = vectorstore_config_dict.copy()
+        config['collection_name'] = collection_name
         
-        return vectorstore.as_retriever()
+        return get_vectorstore_retriever(llm, config, embeddings)
         
     except Exception as e:
-        print(f"Error: {e}")
-        from langchain_core.vectorstores import VectorStore
-        class EmptyVectorStore(VectorStore):
-            def similarity_search(self, query, k=4, **kwargs):
-                return []
-            def get_relevant_documents(self, query):
-                return []
-        return EmptyVectorStore().as_retriever()
+        print(f"Error in get_agenda_retriever: {e}")
+        return None
