@@ -1,11 +1,7 @@
 from typing import Dict
 from helpers.helper import get_vectorstore
 
-def get_vectorstore_retriever(
-    llm,
-    vectorstore_config_dict: Dict[str, str],
-    embeddings
-):
+def get_vectorstore_retriever(llm, vectorstore_config_dict: Dict[str, str], embeddings):
     """Simple vectorstore retriever without complex history awareness."""
     
     vectorstore, _ = get_vectorstore(
@@ -20,18 +16,11 @@ def get_vectorstore_retriever(
     
     return vectorstore.as_retriever()
 
-def get_agenda_retriever(
-    llm,
-    agenda_id: str,
-    document_type: str,
-    vectorstore_config_dict: Dict[str, str],
-    embeddings
-):
-    """Get retriever for agenda documents."""
+def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_config_dict: Dict[str, str], embeddings):
+    """Get retriever for ALL agenda documents."""
     import psycopg2
     
     try:
-        # Get document IDs from database
         conn = psycopg2.connect(
             dbname=vectorstore_config_dict['dbname'],
             user=vectorstore_config_dict['user'],
@@ -47,22 +36,42 @@ def get_agenda_retriever(
             cur.execute("SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s", (agenda_id,))
         
         doc_ids = [str(row[0]) for row in cur.fetchall()]
-        cur.close()
-        conn.close()
+        print(f"Found doc_ids: {doc_ids}")
         
         if not doc_ids:
             print(f"No documents found for agenda {agenda_id}, type {document_type}")
+            cur.close()
+            conn.close()
             return None
         
-        # Use first document's collection
-        collection_name = doc_ids[0]
-        print(f"Using collection: {collection_name}")
+        # Create retrievers for ALL documents
+        retrievers = []
+        for doc_id in doc_ids:
+            try:
+                config = vectorstore_config_dict.copy()
+                config['collection_name'] = doc_id
+                retriever = get_vectorstore_retriever(llm, config, embeddings)
+                retrievers.append(retriever)
+                print(f"Added retriever for collection: {doc_id}")
+            except Exception as e:
+                print(f"Failed to create retriever for {doc_id}: {e}")
         
-        # Update config with collection name
-        config = vectorstore_config_dict.copy()
-        config['collection_name'] = collection_name
+        cur.close()
+        conn.close()
         
-        return get_vectorstore_retriever(llm, config, embeddings)
+        if not retrievers:
+            print("No valid retrievers created")
+            return None
+        
+        # If only one retriever, return it directly
+        if len(retrievers) == 1:
+            return retrievers[0]
+        
+        # Merge multiple retrievers
+        from langchain.retrievers import MergerRetriever
+        merged_retriever = MergerRetriever(retrievers=retrievers)
+        print(f"Created merged retriever with {len(retrievers)} collections")
+        return merged_retriever
         
     except Exception as e:
         print(f"Error in get_agenda_retriever: {e}")
