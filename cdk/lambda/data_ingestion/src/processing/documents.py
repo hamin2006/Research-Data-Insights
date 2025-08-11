@@ -110,7 +110,6 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
             # Upload segment to S3
             try:
                 s3.upload_file(temp_segment.name, output_bucket, segment_key)
-                output_keys.append(segment_key)
                 logger.info(f"Uploaded segment {counter} to S3: {segment_key}")
             except Exception as e:
                 logger.error(f"Error uploading segment {counter} to S3: {e}")
