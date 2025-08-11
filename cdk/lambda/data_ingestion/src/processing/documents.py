@@ -8,6 +8,7 @@ import boto3
 from PyPDF2 import PdfReader
 import docx
 import pandas as pd
+from pydub import AudioSegment
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 from langchain_aws import BedrockEmbeddings
@@ -17,9 +18,11 @@ from langchain.indexes import SQLRecordManager, index
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-s3 = boto3.client('s3')
-
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
+REGION = os.environ["REGION"]
+
+s3 = boto3.client("s3", region_name=REGION)
+transcribe = boto3.client("transcribe", region_name=REGION)
 
 # ---------- CONVERSION HELPERS ----------|
 def process_pdf(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
@@ -82,6 +85,45 @@ def process_csv(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
     
     return output_keys
 
+def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
+    """Process MP3 file and transcribe audio to text using Transcribe."""
+    output_keys = []
+    transcribe_language = "en-US"
+    chunk_length_ms = 45 * 1000  # 45 seconds
+    overlap_ms = 5 * 1000  # 5 seconds overlap
+    
+    audio = AudioSegment.from_mp3(tmp_file_path)
+    audio_segment_keys = []
+    start = 0
+    counter = 1
+
+    while start < len(audio):
+        end = min(start + chunk_length_ms, len(audio))
+        segment = audio[start:end]
+        segment_key = f"{filename}_segment_{counter}.mp3"
+        audio_segment_keys.append(segment_key)
+
+        # Create a temporary file for the segment
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_segment:
+            segment.export(temp_segment.name, format='mp3')
+            
+            # Upload segment to S3
+            try:
+                s3.upload_file(temp_segment.name, output_bucket, segment_key)
+                output_keys.append(segment_key)
+                logger.info(f"Uploaded segment {counter} to S3: {segment_key}")
+            except Exception as e:
+                logger.error(f"Error uploading segment {counter} to S3: {e}")
+                raise
+            finally:
+                os.unlink(temp_segment.name)
+
+        counter += 1
+        start += chunk_length_ms - overlap_ms
+
+    logger.info(f"Processed {counter-1} segments from audio file {filename}")
+    return output_keys
+
 def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str, output_bucket: str) -> List[str]:
     """
     Store the text of each page of a document in an S3 bucket.
@@ -107,6 +149,8 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
             output_keys = process_docx(tmp_file.name, filename, output_bucket)
         elif file_type.lower() == 'csv':
             output_keys = process_csv(tmp_file.name, filename, output_bucket)
+        elif file_type.lower() == 'mp3':
+            output_keys = process_mp3(tmp_file.name, filename, output_bucket)
 
         os.remove(tmp_file.name)
 

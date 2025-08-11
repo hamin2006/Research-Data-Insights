@@ -1261,7 +1261,7 @@ export class ApiGatewayStack extends cdk.Stack {
             tagOrDigest: "latest",
           }
         ),
-        memorySize: 3008,
+        memorySize: 512,
         timeout: cdk.Duration.seconds(600),
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-DataIngestionLambdaDockerFunc`,
