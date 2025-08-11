@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/python:3.11
 
 # Install build dependencies
-RUN yum -y install postgresql-devel gcc libpq gcc-c++ make yasm pkgconfig \
+RUN yum -y install postgresql-devel gcc libpq gcc-c++ make yasm pkgconfig git \
     && yum clean all \
     && rm -rf /var/cache/yum
 
