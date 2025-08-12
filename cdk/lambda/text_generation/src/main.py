@@ -133,6 +133,26 @@ def handler(event, context):
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
     selected_documents = body.get("selected_documents", [])  
+    
+     try:
+        llm = get_bedrock_llm(model_id)
+    except Exception as e:
+        logger.error(f"Error getting LLM from Bedrock: {e}")
+        # Fallback to default model
+        llm = get_bedrock_llm(BEDROCK_LLM_ID)
+    except Exception as e:
+        logger.error(f"Error getting LLM from Bedrock: {e}")
+        return {
+            'statusCode': 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps('Error getting LLM from Bedrock')
+        }
+    
 
     # Pass selected_documents to get_agenda_retriever:
     history_aware_retriever = get_agenda_retriever(
@@ -152,25 +172,6 @@ def handler(event, context):
         }
     
     research_query = format_research_query(question)
-    
-    try:
-        llm = get_bedrock_llm(model_id)
-    except Exception as e:
-        logger.error(f"Error getting LLM from Bedrock: {e}")
-        # Fallback to default model
-        llm = get_bedrock_llm(BEDROCK_LLM_ID)
-    except Exception as e:
-        logger.error(f"Error getting LLM from Bedrock: {e}")
-        return {
-            'statusCode': 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps('Error getting LLM from Bedrock')
-        }
     
     try:
         db_secret = get_secret(DB_SECRET_NAME)
