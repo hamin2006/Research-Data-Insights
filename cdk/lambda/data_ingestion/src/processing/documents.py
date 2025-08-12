@@ -1,4 +1,5 @@
 import os
+import time
 import tempfile
 import logging
 import uuid
@@ -7,6 +8,7 @@ from typing import List, Dict, Any
 import boto3
 from PyPDF2 import PdfReader
 import docx
+from urllib.request import urlopen
 import pandas as pd
 from pydub import AudioSegment
 from langchain_postgres import PGVector
@@ -18,6 +20,7 @@ from langchain.indexes import SQLRecordManager, index
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+RDI_DATA_INGESTION_BUCKET = os.environ["BUCKET"]
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 REGION = os.environ["REGION"]
 
@@ -89,38 +92,41 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
     """Process MP3 file and transcribe audio to text using Transcribe."""
     output_keys = []
     transcribe_language = "en-US"
-    chunk_length_ms = 45 * 1000  # 45 seconds
-    overlap_ms = 5 * 1000  # 5 seconds overlap
+    media_file_uri = f"s3://{RDI_DATA_INGESTION_BUCKET}/{filename}"
+    logger.info(f"Starting transcription job for {media_file_uri}")
+
+    job_name = f"transcription-{filename}-{int(time.time())}"
+    transcribe.start_transcription_job(
+        TranscriptionJobName=job_name,
+        Media={'MediaFileUri': media_file_uri},
+        MediaFormat='mp3',
+        LanguageCode=transcribe_language,
+        Settings={
+                'ShowSpeakerLabels': True,
+                'ShowAlternatives': False,
+            }
+    )
+
+    transcript_uri = None
+    while True:
+        resp = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+        status = resp["TranscriptionJob"]["TranscriptionJobStatus"]
+        if status == "COMPLETED":
+            transcript_uri = resp["TranscriptionJob"]["Transcript"]["TranscriptFileUri"]
+            break
+        if status == "FAILED":
+            raise Exception("Transcription job failed")
+        time.sleep(5)
     
-    audio = AudioSegment.from_mp3(tmp_file_path)
-    audio_segment_keys = []
-    start = 0
-    counter = 1
+    response = urlopen(transcript_uri)
+    data = json.loads(response.read())
+    transcript_text = data['results']['transcripts'][0]['transcript']
+    output_key = f'{filename}_transcript.txt'
+    output_keys.append(output_key)
 
-    while start < len(audio):
-        end = min(start + chunk_length_ms, len(audio))
-        segment = audio[start:end]
-        segment_key = f"{filename}_segment_{counter}.mp3"
-        audio_segment_keys.append(segment_key)
+    with BytesIO(transcript_text) as page_output_buffer:
+        s3.upload_fileobj(page_output_buffer, output_bucket, output_key)
 
-        # Create a temporary file for the segment
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_segment:
-            segment.export(temp_segment.name, format='mp3')
-            
-            # Upload segment to S3
-            try:
-                s3.upload_file(temp_segment.name, output_bucket, segment_key)
-                logger.info(f"Uploaded segment {counter} to S3: {segment_key}")
-            except Exception as e:
-                logger.error(f"Error uploading segment {counter} to S3: {e}")
-                raise
-            finally:
-                os.unlink(temp_segment.name)
-
-        counter += 1
-        start += chunk_length_ms - overlap_ms
-
-    logger.info(f"Processed {counter-1} segments from audio file {filename}")
     return output_keys
 
 def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str, output_bucket: str) -> List[str]:
