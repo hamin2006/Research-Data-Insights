@@ -28,6 +28,44 @@ s3 = boto3.client("s3", region_name=REGION)
 transcribe = boto3.client("transcribe", region_name=REGION)
 
 # ---------- CONVERSION HELPERS ----------|
+
+
+def format_diarized_transcript(data):
+    speaker_segments = data["results"]["speaker_labels"]["segments"]
+    items = data["results"]["items"]
+
+    # Map each speaker_label (e.g., spk_0) to Speaker 1, Speaker 2, etc.
+    speaker_map = {}
+    speaker_counter = 1
+    for segment in speaker_segments:
+        label = segment["speaker_label"]
+        if label not in speaker_map:
+            speaker_map[label] = f"Speaker {speaker_counter}"
+            speaker_counter += 1
+
+    output = []
+    segment_index = 0
+    segment = speaker_segments[segment_index]
+    speaker = segment["speaker_label"]
+    current_line = f"**{speaker_map[speaker]}:** "
+
+    for item in items:
+        if item["type"] == "punctuation":
+            current_line = current_line.rstrip() + item["alternatives"][0]["content"] + " "
+        else:
+            while (segment_index + 1 < len(speaker_segments) and
+                   float(item["start_time"]) >= float(speaker_segments[segment_index + 1]["start_time"])):
+                output.append(current_line.strip())
+                segment_index += 1
+                segment = speaker_segments[segment_index]
+                speaker = segment["speaker_label"]
+                current_line = f"**{speaker_map[speaker]}:** "
+
+            current_line += item["alternatives"][0]["content"] + " "
+
+    output.append(current_line.strip())
+    return "\n\n".join(output)
+
 def process_pdf(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
     """Process PDF file and store text of each page in S3."""
     output_keys = []
@@ -133,7 +171,7 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
     
     response = urlopen(transcript_uri)
     data = json.loads(response.read())
-    transcript_text = data['results']['transcripts'][0]['transcript'].encode("utf8")
+    transcript_text = format_diarized_transcript(data).encode("utf8")
     output_key = f'{filename}_transcript.txt'
     output_keys.append(output_key)
 
