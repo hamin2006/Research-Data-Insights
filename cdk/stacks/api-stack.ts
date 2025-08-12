@@ -1208,6 +1208,9 @@ export class ApiGatewayStack extends cdk.Stack {
         `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1`,
         `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1:0`,
         `arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-embed-text-v2:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-8b-instruct-v1:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/mistral.mistral-large-2402-v1:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-text-express-v1`,
       ],
     });
     textGenLambdaDockerFunc.addToRolePolicy(textGenBedrockPolicyStatement);
