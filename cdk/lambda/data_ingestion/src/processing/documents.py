@@ -105,9 +105,18 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
         MediaFormat='mp3',
         LanguageCode=transcribe_language,
         Settings={
-                'ShowSpeakerLabels': True,
-                'ShowAlternatives': False,
-            }
+            'ShowSpeakerLabels': True,
+            'ShowAlternatives': False,
+        },
+        ContentRedaction={
+            'RedactionType': 'PII',
+            'RedactionOutput': 'redacted_and_unredacted',
+            'PiiEntityTypes': [
+                'NAME', 'EMAIL', 'PHONE', 'SSN', 
+                'CREDIT_DEBIT_NUMBER', 'BANK_ACCOUNT_NUMBER', 
+                'ADDRESS'
+            ]
+        }
     )
 
     transcript_uri = None
