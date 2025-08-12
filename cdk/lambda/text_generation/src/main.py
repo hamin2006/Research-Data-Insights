@@ -153,18 +153,6 @@ def handler(event, context):
             'body': json.dumps('Error getting LLM from Bedrock')
         }
     
-
-    # Pass selected_documents to get_agenda_retriever:
-    history_aware_retriever = get_agenda_retriever(
-        llm=llm,
-        agenda_id=agenda_id,
-        document_type=document_type,
-        vectorstore_config_dict=vectorstore_config_dict,
-        embeddings=embeddings,
-        selected_documents=selected_documents  # Add this parameter
-    )
-
-    
     if not question:
         return {
             'statusCode': 400,
@@ -197,6 +185,7 @@ def handler(event, context):
             document_type=document_type,
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings,
+            selected_documents=selected_documents 
         )
         
         # Check if retriever was created successfully
