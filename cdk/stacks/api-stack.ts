@@ -1358,6 +1358,20 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "transcribe:StartTranscriptionJob",
+          "transcribe:GetTranscriptionJob",
+          "transcribe:ListTranscriptionJobs",
+        ],
+        resources: [
+          `arn:aws:transcribe:${this.region}:${this.account}:transcription-job/*`,
+        ],
+      })
+    );
+
     // Waf Firewall
     const waf = new wafv2.CfnWebACL(this, `${id}-waf`, {
       description: "RDI waf with OWASP",

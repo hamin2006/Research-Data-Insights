@@ -95,7 +95,10 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
     media_file_uri = f"s3://{RDI_DATA_INGESTION_BUCKET}/{filename}"
     logger.info(f"Starting transcription job for {media_file_uri}")
 
-    job_name = f"transcription-{filename}-{int(time.time())}"
+    base_filename = filename.split('/')[-1]
+    clean_name = ''.join(c for c in base_filename if c.isalnum() or c in '._-')
+
+    job_name = f"transcription-{clean_name}-{int(time.time())}"
     transcribe.start_transcription_job(
         TranscriptionJobName=job_name,
         Media={'MediaFileUri': media_file_uri},
