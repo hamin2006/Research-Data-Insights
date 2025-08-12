@@ -7,6 +7,7 @@ from langchain_postgres import PGVector
 from langchain.indexes import SQLRecordManager
 
 from processing.documents import process_agenda_documents
+REGION = os.environ["REGION"]
 
 s3 = boto3.client("s3", region_name=REGION)
 
