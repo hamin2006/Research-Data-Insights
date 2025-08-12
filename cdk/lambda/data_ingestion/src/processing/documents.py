@@ -106,6 +106,7 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
         LanguageCode=transcribe_language,
         Settings={
             'ShowSpeakerLabels': True,
+            'MaxSpeakerLabels': 10,
             'ShowAlternatives': False,
         },
         ContentRedaction={
