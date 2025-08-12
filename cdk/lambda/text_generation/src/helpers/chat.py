@@ -99,8 +99,9 @@ def get_response(
     session_id: str,
     connection
 ) -> dict:
-    """Generate a response to a research query using RAG with agenda-specific context."""
+    """Generate response with debug logging."""
     
+    import logging
     logger = logging.getLogger()
     
     logger.info(f"get_response called with query: {query[:50]}...")
@@ -109,8 +110,12 @@ def get_response(
         # Test retriever first
         docs = history_aware_retriever.get_relevant_documents(query)
         logger.info(f"Retrieved {len(docs)} documents")
-        for i, doc in enumerate(docs[:2]):
-            logger.info(f"Doc {i}: {len(doc.page_content)} chars, source: {doc.metadata.get('source', 'unknown')}")
+        
+        # Log details about each document
+        for i, doc in enumerate(docs[:5]):  # Show first 5 docs
+            source = doc.metadata.get('source', 'unknown')
+            content_preview = doc.page_content[:100] if doc.page_content else 'empty'
+            logger.info(f"Doc {i}: source={source}, content_preview={content_preview}...")
         
         if not docs:
             logger.warning("No documents retrieved - returning fallback response")
@@ -119,10 +124,17 @@ def get_response(
                 "agenda_id": agenda_id
             }
         
-        # Simple approach - just use documents directly
-        context = "\n\n".join([doc.page_content for doc in docs[:3]])
+        # Use more documents in context
+        context = "\n\n".join([f"Document {i+1}: {doc.page_content}" for i, doc in enumerate(docs[:5])])
         
-        prompt = f"""You are a research assistant. Answer based on the context provided. Context: {context} Question: {query} Answer:"""
+        prompt = f"""You are a research assistant. Answer based on ALL the context documents provided below.
+
+Context Documents:
+{context}
+
+Question: {query}
+
+Answer based on information from ALL the documents above:"""
         
         logger.info("Calling LLM...")
         response = llm.invoke(prompt)
@@ -139,6 +151,7 @@ def get_response(
             "response": f"Error: {str(e)}",
             "agenda_id": agenda_id
         }
+
 
 
 def generate_response(conversational_rag_chain: object, query: str, session_id: str) -> str:
