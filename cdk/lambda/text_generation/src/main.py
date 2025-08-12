@@ -98,6 +98,9 @@ def handler(event, context):
 
     query_params = event.get("queryStringParameters", {})
     path_params = event.get("pathParameters", {})
+    model_id = query_params.get("model_id", BEDROCK_LLM_ID)  # Use frontend selection or default
+
+
     
     agenda_id = path_params.get("agenda_id", "")
     session_id = query_params.get("session_id", "")
@@ -139,6 +142,10 @@ def handler(event, context):
     research_query = format_research_query(question)
     
     try:
+        llm = get_bedrock_llm(model_id)
+    except Exception as e:
+        logger.error(f"Error getting LLM from Bedrock: {e}")
+        # Fallback to default model
         llm = get_bedrock_llm(BEDROCK_LLM_ID)
     except Exception as e:
         logger.error(f"Error getting LLM from Bedrock: {e}")
