@@ -45,13 +45,6 @@ export default function AddContextDocumentModal({
         );
         const { presignedurl, key } = await urlResponse.json();
 
-        // Upload to S3
-        await fetch(presignedurl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        });
-
         // Update agenda with S3 key
         await fetch(
           `${
@@ -71,6 +64,13 @@ export default function AddContextDocumentModal({
             }),
           }
         );
+
+        // Upload to S3
+        await fetch(presignedurl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
       }
 
       onAddDocument({
