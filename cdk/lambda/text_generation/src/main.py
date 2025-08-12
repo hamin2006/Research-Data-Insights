@@ -132,6 +132,18 @@ def handler(event, context):
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
+    selected_documents = body.get("selected_documents", [])  
+
+    # Pass selected_documents to get_agenda_retriever:
+    history_aware_retriever = get_agenda_retriever(
+        llm=llm,
+        agenda_id=agenda_id,
+        document_type=document_type,
+        vectorstore_config_dict=vectorstore_config_dict,
+        embeddings=embeddings,
+        selected_documents=selected_documents  # Add this parameter
+    )
+
     
     if not question:
         return {
@@ -260,7 +272,7 @@ def handler(event, context):
                         session_id,
                         question,              # original user message
                         response.get("response", ""),  # LLM answer text
-                        BEDROCK_LLM_ID,
+                        model_id,
                         0                      # your temperature
                     )
                 )
