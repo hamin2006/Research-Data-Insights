@@ -11,7 +11,6 @@ from PyPDF2 import PdfReader
 import docx
 from urllib.request import urlopen
 import pandas as pd
-from pydub import AudioSegment
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 from langchain_aws import BedrockEmbeddings
