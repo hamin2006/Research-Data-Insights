@@ -121,7 +121,7 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
     
     response = urlopen(transcript_uri)
     data = json.loads(response.read())
-    transcript_text = data['results']['transcripts'][0]['transcript']
+    transcript_text = data['results']['transcripts'][0]['transcript'].encode("utf8")
     output_key = f'{filename}_transcript.txt'
     output_keys.append(output_key)
 
