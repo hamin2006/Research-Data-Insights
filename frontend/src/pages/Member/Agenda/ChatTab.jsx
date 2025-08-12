@@ -34,7 +34,6 @@ import { useParams } from 'react-router-dom';
 
 export default function ChatTab() {
   const { agendaId } = useParams(); 
-  const [sessionId, setSessionId] = useState(null); // Change from fixed string
   const [chatSessions, setChatSessions] = useState([]);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
@@ -55,14 +54,21 @@ export default function ChatTab() {
 
   const [contextDocuments, setContextDocuments] = useState([]);
   const [responseGroups, setResponseGroups] = useState([]);
-  const [selectedDocumentType, setSelectedDocumentType] = useState('context'); // 'context' or 'observation'
-  
-  useEffect(() => {
-  const fetchSessions = async () => {
+  const [selectedDocumentType, setSelectedDocumentType] = useState('context'); 
+
+// Replace your sessionId state and useEffects with:
+const [sessionId, setSessionId] = useState(null);
+
+// Single useEffect to handle session initialization
+useEffect(() => {
+  const initializeSessions = async () => {
+    if (!agendaId) return;
+    
     try {
       const session = await fetchAuthSession();
       const token = session.tokens.idToken;
 
+      // Fetch existing sessions
       const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`, {
         headers: { Authorization: token }
       });
@@ -70,19 +76,23 @@ export default function ChatTab() {
       if (response.ok) {
         const sessions = await response.json();
         setChatSessions(sessions);
-        if (sessions.length > 0 && !sessionId) {
+        
+        // If no sessionId set and sessions exist, use the first one
+        if (!sessionId && sessions.length > 0) {
           setSessionId(sessions[0].id_chat_session);
+        }
+        // If no sessions exist, create a new one
+        else if (!sessionId && sessions.length === 0) {
+          await createNewSession();
         }
       }
     } catch (error) {
-      console.error('Error fetching sessions:', error);
+      console.error('Error initializing sessions:', error);
     }
   };
 
-  if (agendaId) {
-    fetchSessions();
-  }
-}, [agendaId]);
+  initializeSessions();
+}, [agendaId]); // Remove sessionId from dependencies
 
 const createNewSession = async () => {
   try {
@@ -191,58 +201,119 @@ const loadSession = async (sessionId) => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!message.trim()) return;
+  // Add these state variables after your existing useState declarations:
+const [settingsChanged, setSettingsChanged] = useState(false);
 
-    const userMessage = {
-      id: messages.length + 1,
-      content: message,
-      sender: "user",
+// Add save settings function:
+const saveSettings = () => {
+  // Settings are already saved in state, just close drawer and reset flag
+  setSettingsChanged(false);
+  setIsSettingsOpen(false);
+};
+
+// Update document checkbox handlers:
+const handleDocumentChange = (docId, checked, type) => {
+  if (type === 'context') {
+    setContextDocuments(prev => 
+      prev.map(d => d.id === docId ? {...d, checked} : d)
+    );
+  } else {
+    setResponseGroups(prev => 
+      prev.map(d => d.id === docId ? {...d, checked} : d)
+    );
+  }
+  setSettingsChanged(true);
+};
+
+// Update model selection handler:
+const handleModelChange = (newModel) => {
+  setSelectedModel(newModel);
+  setSettingsChanged(true);
+};
+
+
+  const getModelId = (modelName) => {
+  const modelMap = {
+    "Meta Llama 3 8b": "meta.llama3-8b-instruct-v1:0",
+    "Mistral Large 2402": "mistral.mistral-large-2402-v1:0", 
+    "Amazon Titan Express V1": "amazon.titan-text-express-v1"
+  };
+  return modelMap[modelName] || "meta.llama3-8b-instruct-v1:0";
+};
+
+ const handleSendMessage = async () => {
+  if (!message.trim()) return;
+
+  const userMessage = {
+    id: messages.length + 1,
+    content: message,
+    sender: "user",
+    timestamp: new Date(),
+  };
+
+  setMessages((prev) => [...prev, userMessage]);
+  setMessage("");
+  setIsTyping(true);
+
+  try {
+    const session = await fetchAuthSession();
+    const token = session.tokens.idToken;
+
+    // Get selected document IDs
+    const selectedDocs = selectedDocumentType === 'context' 
+      ? contextDocuments.filter(d => d.checked).map(d => d.id)
+      : responseGroups.filter(d => d.checked).map(d => d.id);
+
+    const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/text_generation?session_id=${sessionId}&document_type=${selectedDocumentType}&agenda_id=${agendaId}&model_id=${getModelId(selectedModel)}`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message_content: message,
+        selected_documents: selectedDocs
+      })
+    });
+
+    const result = await response.json();
+
+    console.log('Backend response:', result);
+    
+    const aiMessage = {
+      id: messages.length + 2,
+      content: result.response || result.llm_output || "I couldn't process your request.",
+      sender: "ai",
       timestamp: new Date(),
     };
+    
+    setMessages((prev) => [...prev, aiMessage]);
 
-    setMessages((prev) => [...prev, userMessage]);
-    setMessage("");
-    setIsTyping(true);
-
-    try {
-      const session = await fetchAuthSession();
-      const token = session.tokens.idToken;
-
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/text_generation?session_id=${sessionId}&document_type=${selectedDocumentType}&agenda_id=${agendaId}`, {
-        method: "POST",
-        headers: {
-          Authorization: token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message_content: message
-        })
-      });
-
-      const result = await response.json();
-      
-      const aiMessage = {
-        id: messages.length + 2,
-        content: result.response || result.llm_output || "I couldn't process your request.",
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('RAG query failed:', error);
-      const errorMessage = {
-        id: messages.length + 2,
-        content: "Sorry, I encountered an error processing your request. Please try again.",
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsTyping(false);
+    // Update session name if it was generated
+    if (result.session_name) {
+      setChatSessions(prev => 
+        prev.map(s => 
+          s.id_chat_session === sessionId 
+            ? { ...s, session_name: result.session_name }
+            : s
+        )
+      );
     }
-  };
+
+  } catch (error) {
+    console.error('RAG query failed:', error);
+    const errorMessage = {
+      id: messages.length + 2,
+      content: "Sorry, I encountered an error processing your request. Please try again.",
+      sender: "ai",
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, errorMessage]);
+  } finally {
+    setIsTyping(false);
+  }
+};
+
   
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -260,6 +331,21 @@ const loadSession = async (sessionId) => {
       minute: "2-digit",
     });
   };
+
+  // Add this function after your other helper functions:
+const formatMessageContent = (content) => {
+  return content
+    // Remove excessive asterisks
+    .replace(/\*{2,}/g, '')
+    // Add line breaks after section headers (text followed by colon)
+    .replace(/([A-Z][^:\n]*:)/g, '\n$1\n')
+    // Clean up multiple line breaks
+    .replace(/\n{3,}/g, '\n\n')
+    // Add spacing around numbered lists
+    .replace(/(\d+\.\s)/g, '\n$1')
+    .trim();
+};
+
 
   return (
     <Box
@@ -345,16 +431,17 @@ const loadSession = async (sessionId) => {
             <Paper
               sx={{
                 p: 2,
-                backgroundColor: msg.sender === "user" ? "#8B5CF6" : "white",
+                backgroundColor: msg.sender === "user" ? "#8B5CF6" : "transparent",
                 color: msg.sender === "user" ? "white" : "#1F2937",
-                borderRadius: 2,
+                border: "none",
                 maxWidth: "100%",
                 wordBreak: "break-word",
               }}
             >
-              <Typography variant="body1" sx={{ mb: 0.5 }}>
-                {msg.content}
-              </Typography>
+<Typography variant="body1" sx={{ mb: 0.5, whiteSpace: 'pre-line' }}>
+  {msg.sender === 'ai' ? formatMessageContent(msg.content) : msg.content}
+</Typography>
+
               <Typography
                 variant="caption"
                 sx={{
@@ -440,208 +527,132 @@ const loadSession = async (sessionId) => {
         anchor="right"
         open={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        sx={{
-          "& .MuiDrawer-paper": {
-            width: 350,
-            p: 0,
-          },
-        }}
+        sx={{ "& .MuiDrawer-paper": { width: 350, p: 0 } }}
       >
         <Box sx={{ p: 3, height: "100%", overflow: "auto" }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Chat Settings
-            </Typography>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>Chat Settings</Typography>
             <IconButton onClick={() => setIsSettingsOpen(false)} size="small">
               <Close />
             </IconButton>
           </Box>
           <Divider sx={{ my: 1 }} />
 
-          <Typography
-            variant="subtitle2"
-            sx={{ mb: 2, color: "#374151", fontWeight: 600 }}
-          >
+          <Typography variant="subtitle2" sx={{ mb: 2, color: "#374151", fontWeight: 600 }}>
             AI Model
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            This model will be used for text generation
           </Typography>
           <FormControl fullWidth sx={{ mb: 3 }}>
             <Select
               value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
+              onChange={(e) => handleModelChange(e.target.value)}
               size="small"
             >
               <MenuItem value="Meta Llama 3 8b">Meta Llama 3 8b</MenuItem>
-              <MenuItem value="GPT-4">Mistral Large 2402</MenuItem>
-              <MenuItem value="Claude 3">Amazon Titan Express V1</MenuItem>
+              <MenuItem value="Mistral Large 2402">Mistral Large 2402</MenuItem>
+              <MenuItem value="Amazon Titan Express V1">Amazon Titan Express V1</MenuItem>
             </Select>
           </FormControl>
 
           <Divider sx={{ my: 2 }} />
 
-          <Typography
-            variant="subtitle2"
-            sx={{ mb: 2, color: "#374151", fontWeight: 600 }}
-          >
-            Context Documents
+          <Typography variant="subtitle2" sx={{ mb: 2, color: "#374151", fontWeight: 600 }}>
+            Document Source
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Select documents the AI can reference
-          </Typography>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <Select
+              value={selectedDocumentType}
+              onChange={(e) => setSelectedDocumentType(e.target.value)}
+              size="small"
+            >
+              <MenuItem value="context">Context Documents</MenuItem>
+              <MenuItem value="observation">Research Observations</MenuItem>
+            </Select>
+          </FormControl>
 
           <Box sx={{ mb: 3 }}>
-            {contextDocuments.map((doc) => (
+            {(selectedDocumentType === 'context' ? contextDocuments : responseGroups).map((doc) => (
               <FormControlLabel
                 key={doc.id}
                 control={
                   <Checkbox
-                    defaultChecked={doc.checked}
+                    checked={doc.checked}
+                    onChange={(e) => handleDocumentChange(doc.id, e.target.checked, selectedDocumentType)}
                     size="small"
-                    sx={{
-                      color: "#8B5CF6",
-                      "&.Mui-checked": { color: "#8B5CF6" },
-                    }}
+                    sx={{ color: "#8B5CF6", "&.Mui-checked": { color: "#8B5CF6" } }}
                   />
                 }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
-                    {doc.name}
-                  </Typography>
-                }
+                label={<Typography variant="body2">{doc.name}</Typography>}
                 sx={{ display: "block", mb: 1, ml: 0 }}
               />
             ))}
           </Box>
 
-          <Divider sx={{ my: 2 }} />
-
-          <Typography
-            variant="subtitle2"
-            sx={{ mb: 2, color: "#374151", fontWeight: 600 }}
+          {/* Save Button */}
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={saveSettings}
+            disabled={!settingsChanged}
+            sx={{
+              backgroundColor: "#8B5CF6",
+              "&:hover": { backgroundColor: "#7C3AED" },
+              "&:disabled": { backgroundColor: "#D1D5DB" },
+              mt: 2
+            }}
           >
-            Response Groups
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Select response groups for analysis
-          </Typography>
-
-          <Box sx={{ mb: 3 }}>
-            {responseGroups.map((group) => (
-              <FormControlLabel
-                key={group.id}
-                control={
-                  <Checkbox
-                    defaultChecked={group.checked}
-                    size="small"
-                    sx={{
-                      color: "#8B5CF6",
-                      "&.Mui-checked": { color: "#8B5CF6" },
-                    }}
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
-                    {group.name}
-                  </Typography>
-                }
-                sx={{ display: "block", mb: 1, ml: 0 }}
-              />
-            ))}
-          </Box>
+            Save Settings
+          </Button>
         </Box>
       </Drawer>
+
+
 
       {/* Chat Sessions Drawer */}
       <Drawer
         anchor="right"
         open={isChatSessionsOpen}
         onClose={() => setIsChatSessionsOpen(false)}
-        sx={{
-          "& .MuiDrawer-paper": {
-            width: 350,
-            p: 0,
-          },
-        }}
+        sx={{ "& .MuiDrawer-paper": { width: 350, p: 0 } }}
       >
-        <Box
-          sx={{
-            p: 0,
-            height: "100%",
-            overflow: "auto",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              px: 3,
-              pt: 2,
-            }}
-          >
+        <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2 }}>
             <Typography variant="h6">Chat Sessions</Typography>
             <IconButton onClick={() => setIsChatSessionsOpen(false)}>
               <Close />
             </IconButton>
           </Box>
-          <Divider sx={{ mt: 1 }} />
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
+          <Divider />
+          
+          <Box sx={{ p: 2 }}>
             <Button
-              variant="contained"
+              fullWidth
+              variant="outlined"
               onClick={createNewSession}
               startIcon={<Add />}
-              sx={{
-                backgroundColor: "transparent",
-                width: "80%",
-                mt: 2,
-                border: "1px solid black",
-                "&:hover": {
-                  backgroundColor: "rgba(139, 92, 246, 0.1)",
-                },
-                boxShadow: "none",
-                color: "black",
-              }}
+              sx={{ mb: 2 }}
             >
-              Create New Session
+              New Session
             </Button>
           </Box>
-          <List>
+          
+          <List sx={{ flex: 1, overflow: "auto" }}>
             {chatSessions.map((session) => (
-  <ListItem key={session.id_chat_session}> {/* Change key */}
-    <ListItemButton
-      onClick={() => loadSession(session.id_chat_session)} // Change onClick
-      sx={{
-        backgroundColor:
-          sessionId === session.id_chat_session ? "rgba(139, 92, 246, 0.1)" : "transparent", // Change condition
-      }}
-    >
-      <ListItemText
-        primary={session.session_name} 
-        secondary={formatTime(new Date(session.created_at))} 
-      />
-    </ListItemButton>
-  </ListItem>
-))}
+              <ListItem key={session.id_chat_session} disablePadding>
+                <ListItemButton
+                  onClick={() => loadSession(session.id_chat_session)}
+                  selected={sessionId === session.id_chat_session}
+                >
+                  <ListItemText
+                    primary={session.session_name}
+                    secondary={formatTime(new Date(session.created_at))}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
           </List>
-          ;
         </Box>
       </Drawer>
+
     </Box>
   );
 }
