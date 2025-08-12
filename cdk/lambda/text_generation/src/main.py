@@ -134,7 +134,7 @@ def handler(event, context):
     question = body.get("message_content", "")
     selected_documents = body.get("selected_documents", [])  
     
-     try:
+    try:
         llm = get_bedrock_llm(model_id)
     except Exception as e:
         logger.error(f"Error getting LLM from Bedrock: {e}")
