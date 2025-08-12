@@ -16,8 +16,8 @@ def get_vectorstore_retriever(llm, vectorstore_config_dict: Dict[str, str], embe
     
     return vectorstore.as_retriever()
 
-def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_config_dict: Dict[str, str], embeddings):
-    """Get retriever for ALL agenda documents."""
+def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_config_dict: Dict[str, str], embeddings, selected_documents=None):
+    """Get retriever for selected agenda documents only."""
     import psycopg2
     
     try:
@@ -31,12 +31,21 @@ def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_co
         cur = conn.cursor()
         
         if document_type == "context":
-            cur.execute("SELECT id_context_doc FROM context_documents WHERE research_agenda_id = %s", (agenda_id,))
+            if selected_documents:
+                # Only get selected documents
+                placeholders = ','.join(['%s'] * len(selected_documents))
+                cur.execute(f"SELECT id_context_doc FROM context_documents WHERE research_agenda_id = %s AND id_context_doc IN ({placeholders})", [agenda_id] + selected_documents)
+            else:
+                cur.execute("SELECT id_context_doc FROM context_documents WHERE research_agenda_id = %s", (agenda_id,))
         else:
-            cur.execute("SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s", (agenda_id,))
+            if selected_documents:
+                placeholders = ','.join(['%s'] * len(selected_documents))
+                cur.execute(f"SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s AND id_research_observations IN ({placeholders})", [agenda_id] + selected_documents)
+            else:
+                cur.execute("SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s", (agenda_id,))
         
         doc_ids = [str(row[0]) for row in cur.fetchall()]
-        print(f"Found doc_ids: {doc_ids}")
+        print(f"Using selected documents: {doc_ids}")
         
         if not doc_ids:
             print(f"No documents found for agenda {agenda_id}, type {document_type}")

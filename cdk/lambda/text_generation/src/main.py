@@ -98,6 +98,9 @@ def handler(event, context):
 
     query_params = event.get("queryStringParameters", {})
     path_params = event.get("pathParameters", {})
+    model_id = query_params.get("model_id", BEDROCK_LLM_ID)  # Use frontend selection or default
+
+
     
     agenda_id = path_params.get("agenda_id", "")
     session_id = query_params.get("session_id", "")
@@ -129,16 +132,13 @@ def handler(event, context):
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
-    
-    if not question:
-        return {
-            'statusCode': 400,
-            'body': json.dumps('Missing message_content in request body')
-        }
-    
-    research_query = format_research_query(question)
+    selected_documents = body.get("selected_documents", [])  
     
     try:
+        llm = get_bedrock_llm(model_id)
+    except Exception as e:
+        logger.error(f"Error getting LLM from Bedrock: {e}")
+        # Fallback to default model
         llm = get_bedrock_llm(BEDROCK_LLM_ID)
     except Exception as e:
         logger.error(f"Error getting LLM from Bedrock: {e}")
@@ -152,6 +152,14 @@ def handler(event, context):
             },
             'body': json.dumps('Error getting LLM from Bedrock')
         }
+    
+    if not question:
+        return {
+            'statusCode': 400,
+            'body': json.dumps('Missing message_content in request body')
+        }
+    
+    research_query = format_research_query(question)
     
     try:
         db_secret = get_secret(DB_SECRET_NAME)
@@ -177,6 +185,7 @@ def handler(event, context):
             document_type=document_type,
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings,
+            selected_documents=selected_documents 
         )
         
         # Check if retriever was created successfully
@@ -253,7 +262,7 @@ def handler(event, context):
                         session_id,
                         question,              # original user message
                         response.get("response", ""),  # LLM answer text
-                        BEDROCK_LLM_ID,
+                        model_id,
                         0                      # your temperature
                     )
                 )

@@ -99,8 +99,9 @@ def get_response(
     session_id: str,
     connection
 ) -> dict:
-    """Generate a response to a research query using RAG with agenda-specific context."""
+    """Generate response with custom prompt from database."""
     
+    import logging
     logger = logging.getLogger()
     
     logger.info(f"get_response called with query: {query[:50]}...")
@@ -109,20 +110,34 @@ def get_response(
         # Test retriever first
         docs = history_aware_retriever.get_relevant_documents(query)
         logger.info(f"Retrieved {len(docs)} documents")
-        for i, doc in enumerate(docs[:2]):
-            logger.info(f"Doc {i}: {len(doc.page_content)} chars, source: {doc.metadata.get('source', 'unknown')}")
         
         if not docs:
             logger.warning("No documents retrieved - returning fallback response")
             return {
-                "response": "I don't have access to any relevant documents for this research agenda. Please ensure documents have been uploaded and processed.",
+                "response": "I don't have access to any relevant documents for this research agenda.",
                 "agenda_id": agenda_id
             }
         
-        # Simple approach - just use documents directly
-        context = "\n\n".join([doc.page_content for doc in docs[:3]])
+        # Get custom prompt from database
+        custom_prompt = get_custom_prompt(agenda_id, connection)
         
-        prompt = f"""You are a research assistant. Answer based on the context provided. Context: {context} Question: {query} Answer:"""
+        # Use custom prompt if available, otherwise use default
+        if custom_prompt:
+            system_prompt = custom_prompt
+        else:
+            system_prompt = "You are a research assistant. Answer based on ALL the context documents provided below."
+        
+        # Use more documents in context
+        context = "\n\n".join([f"Document {i+1}: {doc.page_content}" for i, doc in enumerate(docs[:5])])
+        
+        prompt = f"""{system_prompt}
+
+Context Documents:
+{context}
+
+Question: {query}
+
+Answer:"""
         
         logger.info("Calling LLM...")
         response = llm.invoke(prompt)
