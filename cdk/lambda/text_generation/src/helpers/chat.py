@@ -99,7 +99,7 @@ def get_response(
     session_id: str,
     connection
 ) -> dict:
-    """Generate response with debug logging."""
+    """Generate response with custom prompt from database."""
     
     import logging
     logger = logging.getLogger()
@@ -111,30 +111,34 @@ def get_response(
         docs = history_aware_retriever.get_relevant_documents(query)
         logger.info(f"Retrieved {len(docs)} documents")
         
-        # Log details about each document
-        for i, doc in enumerate(docs[:5]):  # Show first 5 docs
-            source = doc.metadata.get('source', 'unknown')
-            content_preview = doc.page_content[:100] if doc.page_content else 'empty'
-            logger.info(f"Doc {i}: source={source}, content_preview={content_preview}...")
-        
         if not docs:
             logger.warning("No documents retrieved - returning fallback response")
             return {
-                "response": "I don't have access to any relevant documents for this research agenda. Please ensure documents have been uploaded and processed.",
+                "response": "I don't have access to any relevant documents for this research agenda.",
                 "agenda_id": agenda_id
             }
+        
+        # Get custom prompt from database
+        custom_prompt = get_custom_prompt(agenda_id, connection)
+        
+        # Use custom prompt if available, otherwise use default
+        if custom_prompt:
+            system_prompt = custom_prompt
+        else:
+            system_prompt = "You are a research assistant. Answer based on ALL the context documents provided below."
         
         # Use more documents in context
         context = "\n\n".join([f"Document {i+1}: {doc.page_content}" for i, doc in enumerate(docs[:5])])
         
-        prompt = f"""You are a research assistant. Answer based on ALL the context documents provided below.
+        prompt = f"""{system_prompt}
 
 Context Documents:
 {context}
 
 Question: {query}
 
-Answer based on information from ALL the documents above:"""
+Answer:"""
+        
         logger.info("Calling LLM...")
         response = llm.invoke(prompt)
         logger.info(f"LLM response: {response.content[:100]}...")
@@ -150,7 +154,6 @@ Answer based on information from ALL the documents above:"""
             "response": f"Error: {str(e)}",
             "agenda_id": agenda_id
         }
-
 
 
 def generate_response(conversational_rag_chain: object, query: str, session_id: str) -> str:
