@@ -135,7 +135,6 @@ Context Documents:
 Question: {query}
 
 Answer based on information from ALL the documents above:"""
-        
         logger.info("Calling LLM...")
         response = llm.invoke(prompt)
         logger.info(f"LLM response: {response.content[:100]}...")
