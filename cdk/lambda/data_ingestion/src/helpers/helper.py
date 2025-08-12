@@ -8,7 +8,7 @@ from langchain.indexes import SQLRecordManager
 
 from processing.documents import process_agenda_documents
 
-s3 = boto3.client('s3')
+s3 = boto3.client("s3", region_name=REGION)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

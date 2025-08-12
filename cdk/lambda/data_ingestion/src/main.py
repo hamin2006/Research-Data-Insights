@@ -19,8 +19,8 @@ RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
 
 # AWS Clients
-secrets_manager_client = boto3.client("secretsmanager")
-ssm_client = boto3.client("ssm")
+secrets_manager_client = boto3.client("secretsmanager", region_name=REGION)
+ssm_client = boto3.client("ssm", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
 
 # Cached resources
