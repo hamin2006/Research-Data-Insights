@@ -7,6 +7,8 @@ import {
   Slider,
   Button,
   TextField,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import AdminNavbar from "./AdminNavbar";
 import WarningModal from "../../components/WarningModal";
@@ -15,10 +17,21 @@ function AISettings({ messageLimit }) {
   const [tempLimit, setTempLimit] = useState(messageLimit);
   const [dailyMessageLimit, setDailyMessageLimit] = useState(100);
   const [modalOpen, setModalOpen] = useState(false);
+  const [noLimit, setNoLimit] = useState(false); // Add state for checkbox
 
   const handleSave = () => {
-    setDailyMessageLimit(tempLimit);
+    setDailyMessageLimit(noLimit ? null : tempLimit); // Save null if no limit
     setModalOpen(false);
+  };
+
+  // Handle checkbox change
+  const handleNoLimitChange = (event) => {
+    setNoLimit(event.target.checked);
+    if (event.target.checked) {
+      setTempLimit(Infinity); // Clear limit when checkbox is checked
+    } else {
+      setTempLimit(dailyMessageLimit); // Restore previous limit when unchecked
+    }
   };
 
   return (
@@ -53,7 +66,7 @@ function AISettings({ messageLimit }) {
 
             <Box sx={{ px: 2 }}>
               <Slider
-                value={tempLimit}
+                value={tempLimit || 250} // Provide default value when null
                 onChange={(_, value) => setTempLimit(value)}
                 min={1}
                 max={250}
@@ -66,6 +79,7 @@ function AISettings({ messageLimit }) {
                   { value: 1000, label: "1000" },
                 ]}
                 valueLabelDisplay="on"
+                disabled={noLimit} // Disable when no limit is checked
                 sx={{
                   color: "#8B5CF6",
                   "& .MuiSlider-valueLabelOpen": {
@@ -80,21 +94,54 @@ function AISettings({ messageLimit }) {
               sx={{
                 mt: 2,
                 textAlign: "center",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                textTransform: "capitalize",
+                fontWeight: "bold",
               }}
             >
               Current limit:{" "}
-              <strong>
-                <TextField
-                  value={tempLimit}
-                  onChange={(e) => setTempLimit(e.target.value)}
-                  type="number"
-                  inputProps={{ min: 1, max: 250 }}
-                  sx={{ p: 0, width: 80, height: 50, textAlign: "center" }}
-                />{" "}
-                messages per day
-              </strong>
+              <TextField
+                value={tempLimit || ""}
+                onChange={(e) => setTempLimit(e.target.value)}
+                type="number"
+                disabled={noLimit} // Disable when no limit is checked
+                inputProps={{ min: 1, max: 250 }}
+                sx={{
+                  p: 0,
+                  mx: 1,
+                  width: 70,
+                  height: 50,
+                }}
+              />{" "}
+              messages per day
             </Typography>
           </Box>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={noLimit}
+                onChange={handleNoLimitChange}
+                sx={{
+                  color: "#8B5CF6",
+                  "&.Mui-checked": { color: "#8B5CF6" },
+                }}
+              />
+            }
+            label={
+              <Typography
+                variant="body1"
+                sx={{
+                  textTransform: "capitalize",
+                  fontWeight: "bold",
+                }}
+              >
+                No Message Limit
+              </Typography>
+            }
+            sx={{ mb: 2 }}
+          />
 
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
             <Button

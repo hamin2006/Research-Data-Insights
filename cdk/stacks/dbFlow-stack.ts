@@ -1,12 +1,8 @@
 import { Stack, StackProps, triggers } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
-
-// Service files import
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
-
-// Stack import
 import { VpcStack } from "./vpc-stack";
 import { DatabaseStack } from "./database-stack";
 import { ApiGatewayStack } from "./api-stack";
@@ -21,9 +17,6 @@ export class DBFlowStack extends Stack {
     props?: StackProps
   ) {
     super(scope, id, props);
-
-    // Retrieve the psycopg2 layer from the API stack
-    const psycopgLambdaLayer = apiStack.getLayers()["psycopg2"];
 
     // Create IAM role for Lambda within the VPC
     const lambdaRole = new iam.Role(this, `${id}-lambda-vpc-role`, {
@@ -80,26 +73,33 @@ export class DBFlowStack extends Stack {
       iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess")
     );
 
-    // Create an initializer Lambda function for the RDS instance, invoked only during deployment
-    const initializerLambda = new triggers.TriggerFunction(
+    // Create a Lambda layer for node-pg-migrate
+    const nodePgMigrateLayer = new lambda.LayerVersion(
       this,
-      `${id}-triggerLambda`,
+      "nodePgMigrateLayer",
       {
-        functionName: `${id}-initializerFunction`,
-        runtime: lambda.Runtime.PYTHON_3_11,
-        handler: "initializer.handler",
-        timeout: Duration.seconds(300),
-        memorySize: 512,
-        environment: {
-          DB_SECRET_NAME: db.secretPathAdminName, // Admin Secret Manager name
-          DB_USER_SECRET_NAME: db.secretPathUser.secretName, // User Secret Manager name
-          DB_PROXY: db.secretPathTableCreator.secretName, // Proxy Secret
-        },
-        vpc: db.dbInstance.vpc,
-        code: lambda.Code.fromAsset("lambda/db_setup"),
-        layers: [psycopgLambdaLayer],
-        role: lambdaRole,
+        code: lambda.Code.fromAsset("./layers/node-pg-migrate.zip"),
+        compatibleRuntimes: [lambda.Runtime.NODEJS_18_X],
+        description: "Lambda layer with node-pg-migrate and pg",
       }
     );
+
+    new triggers.TriggerFunction(this, `${id}-triggerLambda`, {
+      description: `Database initializer and migration runner - ${new Date().toISOString()}`,
+      functionName: `${id}-initializerFunction`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "index.handler",
+      timeout: Duration.seconds(300),
+      memorySize: 512,
+      environment: {
+        DB_SECRET_NAME: db.secretPathAdminName,
+        DB_USER_SECRET_NAME: db.secretPathUser.secretName,
+        DB_PROXY: db.secretPathTableCreator.secretName,
+      },
+      vpc: db.dbInstance.vpc,
+      code: lambda.Code.fromAsset("lambda/db_setup"),
+      layers: [nodePgMigrateLayer],
+      role: lambdaRole,
+    });
   }
 }
