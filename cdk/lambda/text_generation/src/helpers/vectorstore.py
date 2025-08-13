@@ -30,8 +30,8 @@ def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_co
         )
         cur = conn.cursor()
         
-        doc_ids =[]
-        
+    
+        doc_ids = []
         
         # Get context documents
         if document_type in ["context", "both", ""]:
@@ -51,14 +51,17 @@ def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_co
                 cur.execute("SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s", (agenda_id,))
             doc_ids.extend([str(row[0]) for row in cur.fetchall()])
         
-        # doc_ids = [str(row[0]) for row in cur.fetchall()]
-        print(f"Using selected documents: {doc_ids}")
+        print(f"Retrieved doc_ids from database: {doc_ids}")
         
-        if not doc_ids:
-            print(f"No documents found for agenda {agenda_id}, type {document_type}")
-            cur.close()
-            conn.close()
-            return None
+        # Check if collections actually exist in PostgreSQL
+        for doc_id in doc_ids:
+            cur.execute("SELECT COUNT(*) FROM langchain_pg_collection WHERE name = %s", (doc_id,))
+            count = cur.fetchone()[0]
+            print(f"Collection {doc_id} exists: {count > 0}")
+            if count > 0:
+                cur.execute("SELECT COUNT(*) FROM langchain_pg_embedding WHERE collection_id = (SELECT uuid FROM langchain_pg_collection WHERE name = %s)", (doc_id,))
+                embedding_count = cur.fetchone()[0]
+                print(f"Collection {doc_id} has {embedding_count} embeddings")
         
         # Create retrievers for ALL documents
         retrievers = []
