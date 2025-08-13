@@ -234,11 +234,14 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         s3.download_fileobj(bucket, filename, output_buffer)
         output_buffer.seek(0)
         doc_texts = output_buffer.read().decode('utf-8')
+        
+        doc_texts = doc_texts.replace('\x00', '')
         doc_chunks = text_splitter.create_documents([doc_texts])
         
         head, _, tail = filename.partition("_page_")
         section_num = tail.split('.')[0] 
-        true_filename = head.split("/")[-1] # Converts 'CourseCode_XXX_-_Course-Name.pdf_page_1.txt' to 'CourseCode_XXX_-_Course-Name.pdf'
+        true_filename = head.split("/")[-1] 
+        
         
         doc_chunks = [x for x in doc_chunks if x.page_content]
         
