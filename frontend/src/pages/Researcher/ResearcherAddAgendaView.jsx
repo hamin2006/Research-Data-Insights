@@ -133,13 +133,6 @@ export default function AgendaForm() {
         );
         const { presignedurl, key } = await urlResponse.json();
 
-        // Upload to S3
-        await fetch(presignedurl, {
-          method: "PUT",
-          body: doc.file,
-          headers: { "Content-Type": doc.file.type },
-        });
-
         // Update agenda with S3 key
         await fetch(
           `${
@@ -155,9 +148,17 @@ export default function AgendaForm() {
               document_name: doc.document_name,
               file_path: key,
               description: doc.description,
+              upload_status: "uploaded",
             }),
           }
         );
+
+        // Upload to S3
+        await fetch(presignedurl, {
+          method: "PUT",
+          body: doc.file,
+          headers: { "Content-Type": doc.file.type },
+        });
       }
     }
 
@@ -180,13 +181,6 @@ export default function AgendaForm() {
 
         const { presignedurl, key } = await urlResponse.json();
 
-        // Upload to S3
-        await fetch(presignedurl, {
-          method: "PUT",
-          body: obs.file,
-          headers: { "Content-Type": obs.file.type },
-        });
-
         // Update agenda with S3 key
         await fetch(
           `${
@@ -201,9 +195,17 @@ export default function AgendaForm() {
             body: JSON.stringify({
               document_name: obs.document_name,
               file_path: key,
+              upload_status: "uploaded",
             }),
           }
         );
+
+        // Upload to S3
+        await fetch(presignedurl, {
+          method: "PUT",
+          body: obs.file,
+          headers: { "Content-Type": obs.file.type },
+        });
       }
     }
 
@@ -372,13 +374,19 @@ export default function AgendaForm() {
                             <input
                               type="file"
                               hidden
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 updateContextDoc(
                                   index,
                                   "file",
                                   e.target.files?.[0] || null
-                                )
-                              }
+                                );
+
+                                updateContextDoc(
+                                  index,
+                                  "document_name",
+                                  e.target.files?.[0]?.name || ""
+                                );
+                              }}
                             />
                           </Button>
 
@@ -496,13 +504,19 @@ export default function AgendaForm() {
                             <input
                               type="file"
                               hidden
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 updateObservation(
                                   index,
                                   "file",
                                   e.target.files?.[0] || null
-                                )
-                              }
+                                );
+
+                                updateObservation(
+                                  index,
+                                  "document_name",
+                                  e.target.files?.[0]?.name || ""
+                                );
+                              }}
                             />
                           </Button>
                         </Stack>
