@@ -47,7 +47,7 @@ def format_diarized_transcript(data):
     segment_index = 0
     segment = speaker_segments[segment_index]
     speaker = segment["speaker_label"]
-    current_line = f"**{speaker_map[speaker]}:** "
+    current_line = f"{speaker_map[speaker]}: "
 
     for item in items:
         if item["type"] == "punctuation":
@@ -59,7 +59,7 @@ def format_diarized_transcript(data):
                 segment_index += 1
                 segment = speaker_segments[segment_index]
                 speaker = segment["speaker_label"]
-                current_line = f"**{speaker_map[speaker]}:** "
+                current_line = f"{speaker_map[speaker]}: "
 
             current_line += item["alternatives"][0]["content"] + " "
 
@@ -212,7 +212,7 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
 
     return output_keys
 
-def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
+def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
     """
     Store chunks of documents in the vectorstore.
     
@@ -236,16 +236,20 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, vect
         doc_texts = output_buffer.read().decode('utf-8')
         doc_chunks = text_splitter.create_documents([doc_texts])
         
-        head, _, _ = filename.partition("_page")
-        true_filename = head # Converts 'CourseCode_XXX_-_Course-Name.pdf_page_1.txt' to 'CourseCode_XXX_-_Course-Name.pdf'
+        head, _, tail = filename.partition("_page_")
+        section_num = tail.split('.')[0] 
+        true_filename = head.split("/")[-1] # Converts 'CourseCode_XXX_-_Course-Name.pdf_page_1.txt' to 'CourseCode_XXX_-_Course-Name.pdf'
         
         doc_chunks = [x for x in doc_chunks if x.page_content]
         
         for doc_chunk in doc_chunks:
             if doc_chunk:
                 doc_chunk.metadata["source"] = f"s3://{bucket}/{true_filename}"
-                doc_chunk.metadata["doc_id"] = this_uuid
+                doc_chunk.metadata["document_section"] = section_num
+                doc_chunk.metadata["document_id"] = this_uuid
                 doc_chunk.metadata["document_type"] = document_type
+                doc_chunk.metadata["document_name"] = doc_name
+                doc_chunk.metadata["document_description"] = doc_description
 
             else:
                 logger.warning(f"Empty chunk for {filename}")
@@ -257,7 +261,7 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, vect
        
     return this_doc_chunks
 
-def add_document(bucket: str, agenda: str, document_type: str, filename: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, output_bucket: str = EMBEDDING_BUCKET_NAME) -> List[Document]:
+def add_document(bucket: str, agenda: str, document_type: str, filename: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, output_bucket: str = EMBEDDING_BUCKET_NAME) -> List[Document]:
     # store_doc_texts, store_doc_chunks
     """
     Add a document to the vectorstore.
@@ -288,13 +292,15 @@ def add_document(bucket: str, agenda: str, document_type: str, filename: str, ve
         bucket=output_bucket,
         filenames=output_filenames,
         document_type=document_type,
+        doc_name=doc_name,
+        doc_description=doc_description,
         vectorstore=vectorstore,
         embeddings=embeddings
     )
     
     return this_doc_chunks
 
-def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_name: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, record_manager: SQLRecordManager) -> None:
+def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_name: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, record_manager: SQLRecordManager) -> None:
     # add_document, index
     """
     Process and add text documents from an S3 bucket to the vectorstore.
@@ -323,6 +329,8 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
                     agenda=agenda,
                     document_type=document_type,
                     filename=filename,
+                    doc_name=doc_name,
+                    doc_description=doc_description,
                     vectorstore=vectorstore,
                     embeddings=embeddings
                 )

@@ -160,7 +160,10 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
             </Typography>
             <VisuallyHiddenInput
               type="file"
-              onChange={(event) => setFile(event.target.files[0])}
+              onChange={(event) => {
+                setFile(event.target.files[0]);
+                setFileName(event.target.files[0].name);
+              }}
               multiple
             />
           </Button>
