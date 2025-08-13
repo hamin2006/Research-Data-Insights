@@ -575,6 +575,35 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
+    delete:
+      tags:
+        - Researcher
+      summary: Delete research agenda
+      operationId: deleteAgenda
+      responses:
+        "200":
+          description: Agenda deleted successfully
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Access denied - not agenda owner
+        "404":
+          description: Agenda not found
+        "500":
+          description: Internal Server Error
+      security:
+        - researcherAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
   /agenda/{agenda_id}/prompts:
     parameters:
       - name: agenda_id

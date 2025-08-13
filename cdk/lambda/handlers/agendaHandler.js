@@ -340,6 +340,48 @@ exports.handler = async (event) => {
         break;
       }
 
+      case "DELETE /agenda/{agenda_id}": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
+
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
+
+        // Get user_id and verify ownership
+        const userRow = await sqlConnection`
+    SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+  `;
+
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found");
+        }
+
+        const user_id = userRow[0].user_id;
+
+        // Verify user owns the agenda
+        const agendaCheck = await sqlConnection`
+    SELECT id_research_agenda FROM research_agenda 
+    WHERE id_research_agenda = ${agenda_id} AND user_id = ${user_id}
+  `;
+
+        if (!agendaCheck || agendaCheck.length === 0) {
+          throw new Error("Agenda not found or access denied");
+        }
+
+        // Delete all related data (cascading deletes)
+        await sqlConnection`DELETE FROM context_documents WHERE research_agenda_id = ${agenda_id}`;
+        await sqlConnection`DELETE FROM research_observations WHERE research_agenda_id = ${agenda_id}`;
+        await sqlConnection`DELETE FROM agenda_collaborators WHERE research_agenda_id = ${agenda_id}`;
+        await sqlConnection`DELETE FROM chat_sessions WHERE research_agenda_id = ${agenda_id}`;
+        await sqlConnection`DELETE FROM research_agenda WHERE id_research_agenda = ${agenda_id}`;
+
+        response.body = JSON.stringify({
+          message: "Agenda deleted successfully",
+        });
+        break;
+      }
+
       case "GET /agenda/{agenda_id}/sessions/{session_id}/messages": {
         const cognito_id = event.requestContext?.authorizer?.userId;
         const { agenda_id, session_id } = event.pathParameters;

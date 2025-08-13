@@ -123,7 +123,7 @@ def get_response(
         
         # Use custom prompt if available, otherwise use default
         if custom_prompt:
-            system_prompt = custom_prompt
+            system_prompt = custom_prompt + "Question: {query}"
         else:
             system_prompt = "You are a research assistant. Answer based on ALL the context documents provided below."
         

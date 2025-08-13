@@ -249,7 +249,6 @@ def handler(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps(resp)
         }
-
     except Exception as e:
         print(f"[HandlerError] {e}")
         return {
