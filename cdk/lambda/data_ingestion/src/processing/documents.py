@@ -244,7 +244,7 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         
         for doc_chunk in doc_chunks:
             if doc_chunk:
-                doc_chunk.metadata["source"] = f"s3://{bucket}/{true_filename}"
+                doc_chunk.metadata["source"] = f"s3://{RDI_DATA_INGESTION_BUCKET}/{head}"
                 doc_chunk.metadata["document_section"] = section_num
                 doc_chunk.metadata["document_id"] = this_uuid
                 doc_chunk.metadata["document_type"] = document_type
