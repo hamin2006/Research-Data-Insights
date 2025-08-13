@@ -369,11 +369,13 @@ exports.handler = async (event) => {
           throw new Error("Agenda not found or access denied");
         }
 
-        // Delete all related data (cascading deletes)
+        // Delete in correct order to avoid foreign key violations
+        await sqlConnection`DELETE FROM user_interactions WHERE research_agenda_id = ${agenda_id}`;
+        await sqlConnection`DELETE FROM chat_sessions WHERE research_agenda_id = ${agenda_id}`;
         await sqlConnection`DELETE FROM context_documents WHERE research_agenda_id = ${agenda_id}`;
         await sqlConnection`DELETE FROM research_observations WHERE research_agenda_id = ${agenda_id}`;
         await sqlConnection`DELETE FROM agenda_collaborators WHERE research_agenda_id = ${agenda_id}`;
-        await sqlConnection`DELETE FROM chat_sessions WHERE research_agenda_id = ${agenda_id}`;
+        await sqlConnection`DELETE FROM research_agenda_prompts WHERE research_agenda_id = ${agenda_id}`;
         await sqlConnection`DELETE FROM research_agenda WHERE id_research_agenda = ${agenda_id}`;
 
         response.body = JSON.stringify({
