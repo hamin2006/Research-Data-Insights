@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { MoreVert as MoreVertIcon } from "@mui/icons-material";
 
-function AgendaCard({ agenda, index, role, onClick }) {
+function AgendaCard({ agenda, index, role, onClick, onDelete }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -23,6 +23,15 @@ function AgendaCard({ agenda, index, role, onClick }) {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleDelete = async (event) => {
+    event.stopPropagation();
+    handleMenuClose();
+    
+    if (window.confirm('Are you sure you want to delete this agenda? This action cannot be undone.')) {
+      await onDelete(agenda.id);
+    }
   };
 
   return (
@@ -116,9 +125,7 @@ function AgendaCard({ agenda, index, role, onClick }) {
         <MenuItem onClick={handleMenuClose}>View Details</MenuItem>
         {role === "researcher" ? (
           <>
-            <MenuItem onClick={handleMenuClose}>Edit Agenda</MenuItem>
-            <MenuItem onClick={handleMenuClose}>Duplicate</MenuItem>
-            <MenuItem onClick={handleMenuClose} sx={{ color: "error.main" }}>
+            <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
               Delete
             </MenuItem>
           </>

@@ -46,6 +46,33 @@ const ResearcherHomePage = () => {
     navigate(`/agenda/${id}/collaborators`);
   };
 
+  const handleDeleteAgenda = async (agendaId) => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        setAgendas(agendas.filter(agenda => agenda.id_research_agenda !== agendaId));
+      } else {
+        alert('Failed to delete agenda');
+      }
+    } catch (error) {
+      console.error("Error deleting agenda:", error);
+      alert('Error deleting agenda');
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -92,6 +119,7 @@ const ResearcherHomePage = () => {
                   onClick={() =>
                     handleResearchViewAgenda(agenda.id_research_agenda)
                   }
+                  onDelete={() => handleDeleteAgenda(agenda.id_research_agenda)} 
                 />
               </Grid>
             ))

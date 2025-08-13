@@ -61,6 +61,33 @@ const MemberHomePage = () => {
     navigate(`/agenda/${id}/responses`);
   };
 
+  const handleDeleteAgenda = async (agendaId) => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+  
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+  
+        if (response.ok) {
+          setAgendas(agendas.filter(agenda => agenda.id_research_agenda !== agendaId));
+        } else {
+          alert('Failed to delete agenda');
+        }
+      } catch (error) {
+        console.error("Error deleting agenda:", error);
+        alert('Error deleting agenda');
+      }
+    };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -94,6 +121,7 @@ const MemberHomePage = () => {
                 index={index}
                 role="member"
                 onClick={() => handleMemberViewAgenda(agenda.id)}
+                onDelete={() => handleDeleteAgenda(agenda.id)}
               />
             </Grid>
           ))}

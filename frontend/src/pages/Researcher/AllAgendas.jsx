@@ -84,6 +84,33 @@ export default function Component({ role }) {
     setSearchQuery(event.target.value);
   };
 
+  const handleDeleteAgenda = async (agendaId) => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        setAgendas(agendas.filter(agenda => agenda.id_research_agenda !== agendaId));
+      } else {
+        alert('Failed to delete agenda');
+      }
+    } catch (error) {
+      console.error("Error deleting agenda:", error);
+      alert('Error deleting agenda');
+    }
+  };
+
   const handleResearchViewAgenda = (id) => {
     if (role === "researcher") {
       navigate(`/agenda/${id}/collaborators`);
@@ -177,6 +204,7 @@ export default function Component({ role }) {
                   index={index}
                   role={role}
                   onClick={handleResearchViewAgenda}
+                  onDelete={handleDeleteAgenda} 
                 />
               </Grid>
             ))
