@@ -53,6 +53,8 @@ def store_agenda_data(
     agenda_id: str, 
     document_type: str,  # "context" or "observation"
     file_name: str,
+    doc_name: str,
+    doc_description: str,
     vectorstore_config_dict: Dict[str, str], 
     embeddings: BedrockEmbeddings
 ) -> None:
@@ -94,6 +96,8 @@ def store_agenda_data(
         agenda=agenda_id,
         document_type=document_type,
         file_name=file_name,
+        doc_name=doc_name,
+        doc_description=doc_description,
         vectorstore=vectorstore,
         embeddings=embeddings,
         record_manager=record_manager

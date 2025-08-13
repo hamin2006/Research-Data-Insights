@@ -89,13 +89,13 @@ def parse_s3_file_path(file_key):
         try:
             if document_type == "context_documents":
                 query = """
-                SELECT id_context_doc
+                SELECT id_context_doc, document_name, description
                 FROM context_documents
                 WHERE file_path = %s;
                 """
             elif document_type == "observation_documents":
                 query = """
-                SELECT id_research_observations
+                SELECT id_research_observations, document_name
                 FROM research_observations
                 WHERE file_path = %s;
                 """
@@ -104,16 +104,24 @@ def parse_s3_file_path(file_key):
 
             cur = connection.cursor()
             cur.execute(query, (file_key,))
-            result = cur.fetchone()  # Returns (id,) or None
+            result = cur.fetchone()
 
             if result is None:
                 logger.warning(f"No document found with file_path: {file_key}")
                 return None
 
-            doc_id = result[0]  # Extract the ID from the tuple
+            if document_type == "context_documents":
+                doc_id, doc_name, doc_description = result
+                logger.info(f"Found context document: {doc_name} with description: {doc_description}")
+            else:
+                doc_id, doc_name = result
+                doc_description = ""
+                logger.info(f"Found observation document: {doc_name}")
+
             cur.close()
-            print(f"doc_id: {doc_id}")
-            return agenda_id, document_type, file_name, file_type, doc_id
+            print(f"doc_id: {doc_id}, name: {doc_name}")
+
+            return agenda_id, document_type, file_name, file_type, doc_id, doc_name, doc_description
 
         except Exception as e:
             if cur:
@@ -132,7 +140,7 @@ def parse_s3_file_path(file_key):
 def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name):
     pass
 
-def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_id):
+def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_id, doc_name, doc_description):
     logger.info(f"Starting vectorstore update for file: {file_name}")
     logger.info(f"Bucket: {bucket}")
     logger.info(f"Full path: agendas/{agenda_id}/{document_type}/{file_name}")
@@ -160,6 +168,8 @@ def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_
             agenda_id=agenda_id,
             document_type=document_type,
             file_name=file_name,
+            doc_name=doc_name,
+            doc_description=doc_description,
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
@@ -191,7 +201,7 @@ def handler(event, context):
 
         # if event_name.startswith('ObjectCreated:'):
         # Parse the file path
-        agenda_id, document_type, file_name, file_type, doc_id = parse_s3_file_path(file_key)
+        agenda_id, document_type, file_name, file_type, doc_id, doc_name, doc_description = parse_s3_file_path(file_key)
         if not agenda_id or not document_type or not file_name or not file_type or not doc_id:
             return {
                 "statusCode": 400,
@@ -199,7 +209,7 @@ def handler(event, context):
             }
 
         try:
-            update_vectorstore_from_s3(bucket_name, agenda_id, document_type, file_name, doc_id)
+            update_vectorstore_from_s3(bucket_name, agenda_id, document_type, file_name, doc_id, doc_name, doc_description)
             logger.info(f"Vectorstore updated successfully for module for agenda {agenda_id} {document_type} {file_name}.")
         except Exception as e:
             logger.error(f"Error updating vectorstore for agenda {agenda_id} {document_type} {file_name}: {e}")
