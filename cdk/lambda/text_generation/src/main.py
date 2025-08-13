@@ -104,8 +104,8 @@ def handler(event, context):
     
     agenda_id = path_params.get("agenda_id", "")
     session_id = query_params.get("session_id", "")
-    document_type = query_params.get("document_type", "context")  # default to context docs
-
+    document_type = query_params.get("document_type", "both")  
+    
     if not agenda_id:
         return {
             'statusCode': 400,

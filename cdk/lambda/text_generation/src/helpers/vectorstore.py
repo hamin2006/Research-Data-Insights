@@ -30,19 +30,23 @@ def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_co
         )
         cur = conn.cursor()
         
-        if document_type == "context":
+        # Get context documents
+        if document_type in ["context", "both", ""]:
             if selected_documents:
-                # Only get selected documents
                 placeholders = ','.join(['%s'] * len(selected_documents))
                 cur.execute(f"SELECT id_context_doc FROM context_documents WHERE research_agenda_id = %s AND id_context_doc IN ({placeholders})", [agenda_id] + selected_documents)
             else:
                 cur.execute("SELECT id_context_doc FROM context_documents WHERE research_agenda_id = %s", (agenda_id,))
-        else:
+            doc_ids.extend([str(row[0]) for row in cur.fetchall()])
+        
+        # Get research observations
+        if document_type in ["observations", "both", ""]:
             if selected_documents:
                 placeholders = ','.join(['%s'] * len(selected_documents))
                 cur.execute(f"SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s AND id_research_observations IN ({placeholders})", [agenda_id] + selected_documents)
             else:
                 cur.execute("SELECT id_research_observations FROM research_observations WHERE research_agenda_id = %s", (agenda_id,))
+            doc_ids.extend([str(row[0]) for row in cur.fetchall()])
         
         doc_ids = [str(row[0]) for row in cur.fetchall()]
         print(f"Using selected documents: {doc_ids}")
