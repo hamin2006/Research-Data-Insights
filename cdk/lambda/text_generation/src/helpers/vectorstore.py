@@ -32,6 +32,7 @@ def get_agenda_retriever(llm, agenda_id: str, document_type: str, vectorstore_co
         
         doc_ids =[]
         
+        
         # Get context documents
         if document_type in ["context", "both", ""]:
             if selected_documents:
