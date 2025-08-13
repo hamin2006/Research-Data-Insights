@@ -62,14 +62,13 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
             }),
           }
         );
+        // Upload to S3
+        await fetch(presignedurl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
       }
-
-      // Upload to S3
-      await fetch(presignedurl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
 
       onAddGroup({
         document_name: fileName,
