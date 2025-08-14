@@ -121,23 +121,51 @@ def get_response(
         # Get custom prompt from database
         custom_prompt = get_custom_prompt(agenda_id, connection)
         
-        # Use custom prompt if available, otherwise use default
+                # Separate documents by type using metadata
+        context_docs = []
+        observation_docs = []
+
+        for doc in docs[:5]:
+            doc_type = doc.metadata.get('document_type', 'unknown')
+            if doc_type == 'context_documents':
+                context_docs.append(doc)
+            elif doc_type == 'observation_documents':
+                observation_docs.append(doc)
+
+        # Build structured context with clear instructions
+        context_parts = []
+
+        if context_docs:
+            context_parts.append("BACKGROUND CONTEXT DOCUMENTS:")
+            context_parts.append("Use these for theoretical framework, definitions, and research background:")
+            for i, doc in enumerate(context_docs):
+                context_parts.append(f"[Context-{i+1}] {doc.page_content}")
+
+        if observation_docs:
+            context_parts.append("\nRESEARCH DATA/OBSERVATIONS:")
+            context_parts.append("Use these for analysis, patterns, and evidence:")
+            for i, doc in enumerate(observation_docs):
+                context_parts.append(f"[Data-{i+1}] {doc.page_content}")
+
+        context = "\n\n".join(context_parts)
+
+        # Update the system prompt to be more explicit
         if custom_prompt:
-            system_prompt = custom_prompt + "Question: {query}"
+            system_prompt = custom_prompt
         else:
-            system_prompt = "You are a research assistant. Answer based on ALL the context documents provided below."
-        
-        # Use more documents in context
-        context = "\n\n".join([f"Document {i+1}: {doc.page_content}" for i, doc in enumerate(docs[:5])])
-        
+            system_prompt = """You are a research assistant. Use the provided documents as follows:
+- BACKGROUND CONTEXT DOCUMENTS: For theoretical framework and definitions
+- RESEARCH DATA/OBSERVATIONS: For analysis and evidence
+Answer the question by combining insights from both document types."""
+
         prompt = f"""{system_prompt}
 
-Context Documents:
 {context}
 
 Question: {query}
 
 Answer:"""
+
         
         logger.info("Calling LLM...")
         response = llm.invoke(prompt)
@@ -245,7 +273,7 @@ def update_session_name(table_name: str, session_id: str, bedrock_llm_id: str) -
         prompt = f"Generate a short chat name (max 25 chars) for this conversation:\nUser: {human_msg[:100]}\nAI: {ai_msg[:100]}\nName:"
         
         session_name = llm.invoke(prompt)
-        return session_name[:25]  # Truncate to 25 chars
+        return session_name # Truncate to 25 chars
         
     except Exception as e:
         print(f"Error updating session name: {e}")
