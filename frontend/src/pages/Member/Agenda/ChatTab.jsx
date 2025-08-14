@@ -567,7 +567,7 @@ const formatMessageContent = (content) => {
               size="small"
             >
               <MenuItem value="context">Context Documents</MenuItem>
-              <MenuItem value="observation">Research Observations</MenuItem>
+              <MenuItem value="observations">Research Observations</MenuItem>
             </Select>
           </FormControl>
 
