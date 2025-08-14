@@ -36,44 +36,6 @@ import CssBaseline from "@mui/material/CssBaseline";
 import AdminNavbar from "./AdminNavbar";
 import { fetchAuthSession } from "aws-amplify/auth";
 
-const initialInstructors = [
-  {
-    id: 1,
-    firstName: "John",
-    lastName: "Smith",
-    email: "john.smith@university.edu",
-    status: "Active",
-  },
-  {
-    id: 2,
-    firstName: "Sarah",
-    lastName: "Johnson",
-    email: "sarah.johnson@university.edu",
-    status: "Active",
-  },
-  {
-    id: 3,
-    firstName: "Michael",
-    lastName: "Brown",
-    email: "michael.brown@university.edu",
-    status: "Awaiting Sign-up",
-  },
-  {
-    id: 4,
-    firstName: "Emily",
-    lastName: "Davis",
-    email: "emily.davis@university.edu",
-    status: "Active",
-  },
-  {
-    id: 5,
-    firstName: "David",
-    lastName: "Wilson",
-    email: "david.wilson@university.edu",
-    status: "Active",
-  },
-];
-
 export default function AdminHomePage() {
   const [researchers, setResearchers] = useState([]);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -87,40 +49,43 @@ export default function AdminHomePage() {
   });
 
   useEffect(() => {
-  const loadResearchers = async () => {
-    try {
-      const session = await fetchAuthSession();
-      const token = session.tokens.idToken;
-      
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}users`, {
-        method: "GET",
-        headers: {
-          Authorization: token,
-          "Content-Type": "application/json",
-        },
-      });
-      
-      if (response.ok) {
-        const users = await response.json();
-        const researchers = users
-          .filter(user => user.roles && user.roles.includes('researcher'))
-          .map(user => ({
-            id: user.cognito_id,
-            firstName: user.first_name,
-            lastName: user.last_name,
-            email: user.user_email,
-            status: "Active",
-            cognitoId: user.cognito_id
-          }));
-        setResearchers(researchers);
+    const loadResearchers = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}users`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const users = await response.json();
+          const researchers = users
+            .filter((user) => user.roles && user.roles.includes("researcher"))
+            .map((user) => ({
+              id: user.cognito_id,
+              firstName: user.first_name,
+              lastName: user.last_name,
+              email: user.user_email,
+              status: "Active",
+              cognitoId: user.cognito_id,
+            }));
+          setResearchers(researchers);
+        }
+      } catch (error) {
+        console.error("Error loading researchers:", error);
       }
-    } catch (error) {
-      console.error('Error loading researchers:', error);
-    }
-  };
-  
-  loadResearchers();
-}, []);
+    };
+
+    loadResearchers();
+  }, []);
 
   const handleRowClick = (instructor) => {
     setSelectedInstructor(instructor);
@@ -131,9 +96,11 @@ export default function AdminHomePage() {
     try {
       const session = await fetchAuthSession();
       const token = session.tokens.idToken;
-      
+
       // Check if researcher already exists locally
-      const existingResearcher = researchers.find((researcher) => researcher.email === newInstructorEmail);
+      const existingResearcher = researchers.find(
+        (researcher) => researcher.email === newInstructorEmail
+      );
       if (existingResearcher) {
         setSnackbar({
           open: true,
@@ -144,20 +111,25 @@ export default function AdminHomePage() {
       }
 
       // First, get all users to find the one with this email
-      const usersResponse = await fetch(`${import.meta.env.VITE_API_ENDPOINT}users`, {
-        method: "GET",
-        headers: {
-          Authorization: token,
-          "Content-Type": "application/json",
-        },
-      });
+      const usersResponse = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}users`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!usersResponse.ok) {
         throw new Error(`Error fetching users: ${usersResponse.status}`);
       }
 
       const users = await usersResponse.json();
-      const userToPromote = users.find(user => user.user_email === newInstructorEmail.trim());
+      const userToPromote = users.find(
+        (user) => user.user_email === newInstructorEmail.trim()
+      );
 
       if (!userToPromote) {
         setSnackbar({
@@ -169,16 +141,19 @@ export default function AdminHomePage() {
       }
 
       // Add researcher role using PATCH endpoint
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}user/${userToPromote.cognito_id}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "add"
-        })
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}user/${userToPromote.cognito_id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "add",
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Error Status: ${response.status}`);
@@ -193,7 +168,7 @@ export default function AdminHomePage() {
         lastName: userToPromote.last_name,
         email: userToPromote.user_email,
         status: "Active",
-        cognitoId: userToPromote.cognito_id
+        cognitoId: userToPromote.cognito_id,
       };
 
       setResearchers([...researchers, newInstructor]);
@@ -205,7 +180,6 @@ export default function AdminHomePage() {
 
       setNewInstructorEmail("");
       setAddModalOpen(false);
-
     } catch (error) {
       console.error("Error elevating instructor", error);
       setSnackbar({
@@ -216,51 +190,54 @@ export default function AdminHomePage() {
     }
   };
 
+  const handleRemoveInstructor = async () => {
+    if (selectedInstructor?.cognitoId) {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
 
- const handleRemoveInstructor = async () => {
-  if (selectedInstructor?.cognitoId) {
-    try {
-      const session = await fetchAuthSession();
-      const token = session.tokens.idToken;
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}user/${
+            selectedInstructor.cognitoId
+          }`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "remove",
+            }),
+          }
+        );
 
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}user/${selectedInstructor.cognitoId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "remove"
-        })
-      });
+        if (!response.ok) {
+          throw new Error(`Error Status: ${response.status}`);
+        }
 
-      if (!response.ok) {
-        throw new Error(`Error Status: ${response.status}`);
+        setResearchers(
+          researchers.filter(
+            (researcher) => researcher.id !== selectedInstructor.id
+          )
+        );
+        setSnackbar({
+          open: true,
+          message: "Researcher removed successfully!",
+          severity: "success",
+        });
+        setRemoveModalOpen(false);
+        setSelectedInstructor(null);
+      } catch (error) {
+        console.error("Error removing researcher", error);
+        setSnackbar({
+          open: true,
+          message: "Failed to remove researcher",
+          severity: "error",
+        });
       }
-
-      setResearchers(
-        researchers.filter(
-          (researcher) => researcher.id !== selectedInstructor.id
-        )
-      );
-      setSnackbar({
-        open: true,
-        message: "Researcher removed successfully!",
-        severity: "success",
-      });
-      setRemoveModalOpen(false);
-      setSelectedInstructor(null);
-
-    } catch (error) {
-      console.error("Error removing researcher", error);
-      setSnackbar({
-        open: true,
-        message: "Failed to remove researcher",
-        severity: "error",
-      });
     }
-  }
-};
+  };
 
   const handleDailyMessageLimitChange = (value) => {
     setDailyMessageLimit(value);

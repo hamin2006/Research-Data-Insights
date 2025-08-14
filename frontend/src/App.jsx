@@ -177,7 +177,7 @@ function App() {
               <ProtectedRoute
                 allowedGroups={["admin"]}
                 userGroup={userGroup}
-                element={<AISettings messageLimit={100} />}
+                element={<AISettings />}
               />
             }
           />

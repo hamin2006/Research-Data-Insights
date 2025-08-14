@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Container,
   Typography,
@@ -12,12 +12,43 @@ import {
 } from "@mui/material";
 import AdminNavbar from "./AdminNavbar";
 import WarningModal from "../../components/WarningModal";
+import { fetchAuthSession } from "aws-amplify/auth";
 
-function AISettings({ messageLimit }) {
-  const [tempLimit, setTempLimit] = useState(messageLimit);
-  const [dailyMessageLimit, setDailyMessageLimit] = useState(100);
+function AISettings() {
+  const [tempLimit, setTempLimit] = useState(0);
+  const [dailyMessageLimit, setDailyMessageLimit] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [noLimit, setNoLimit] = useState(false); // Add state for checkbox
+
+  useEffect(() => {
+    const loadLimit = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}admin/message_limit`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const res = await response.json();
+          console.log(res);
+          setTempLimit(res.value);
+        }
+      } catch (error) {
+        console.error("Error loading message limit:", error);
+      }
+    };
+
+    loadLimit();
+  }, []);
 
   const handleSave = () => {
     setDailyMessageLimit(noLimit ? null : tempLimit); // Save null if no limit
@@ -28,7 +59,7 @@ function AISettings({ messageLimit }) {
   const handleNoLimitChange = (event) => {
     setNoLimit(event.target.checked);
     if (event.target.checked) {
-      setTempLimit(Infinity); // Clear limit when checkbox is checked
+      setTempLimit(0); // Clear limit when checkbox is checked
     } else {
       setTempLimit(dailyMessageLimit); // Restore previous limit when unchecked
     }
@@ -66,7 +97,7 @@ function AISettings({ messageLimit }) {
 
             <Box sx={{ px: 2 }}>
               <Slider
-                value={tempLimit || 250} // Provide default value when null
+                value={tempLimit || 0} // Provide default value when null
                 onChange={(_, value) => setTempLimit(value)}
                 min={1}
                 max={250}
@@ -103,7 +134,7 @@ function AISettings({ messageLimit }) {
             >
               Current limit:{" "}
               <TextField
-                value={tempLimit || ""}
+                value={tempLimit || 1}
                 onChange={(e) => setTempLimit(e.target.value)}
                 type="number"
                 disabled={noLimit} // Disable when no limit is checked

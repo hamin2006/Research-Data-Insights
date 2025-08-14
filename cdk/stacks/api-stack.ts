@@ -1072,8 +1072,61 @@ export class ApiGatewayStack extends cdk.Stack {
         parameterName: `/${id}/RDI/MessageLimit`,
         description:
           "Parameter containing the Message Limit for the AI assistant (per day)",
-        stringValue: "Infinity",
+        stringValue: "100",
       }
+    );
+
+    const lambdaAdminFunction = new lambda.Function(
+      this,
+      `${id}-adminFunction`,
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset("lambda"),
+        handler: "handlers/adminHandler.handler",
+        timeout: Duration.seconds(300),
+        vpc: vpcStack.vpc,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          USER_POOL: this.userPool.userPoolId,
+          MESSAGE_LIMIT: messageLimitParameter.parameterName,
+        },
+        functionName: `${id}-adminFunction`,
+        memorySize: 512,
+        layers: [postgres],
+        role: lambdaRole,
+      }
+    );
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    lambdaAdminFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
+
+    lambdaAdminFunction.addPermission("AllowTestInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/test-invoke-stage/*/*`,
+    });
+
+    const cfnLambda_admin = lambdaAdminFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnLambda_admin.overrideLogicalId("adminFunction");
+
+    lambdaAdminFunction.addPermission("AllowUserApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
+    });
+
+    lambdaAdminFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [messageLimitParameter.parameterArn],
+      })
     );
 
     // Create the researcher function that the OpenAPI references
