@@ -1372,6 +1372,71 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
+    const scoringLambdaFunction = new lambda.DockerImageFunction(
+      this,
+      `${id}-ScoringLambdaFunction`,
+      {
+        code: lambda.DockerImageCode.fromEcr(
+          props.ecrRepositories["scoring"],
+          {
+            tagOrDigest: "latest",
+          }
+        ),
+        memorySize: 1024,
+        timeout: cdk.Duration.seconds(300),
+        vpc: vpcStack.vpc,
+        functionName: `${id}-ScoringLambdaFunction`,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          REGION: this.region,
+          BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
+          TABLE_NAME_PARAM: tableNameParameter.parameterName,
+        },
+      }
+    );
+
+    // Override the Logical ID
+    const cfnScoringDockerFunc = scoringLambdaFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnScoringDockerFunc.overrideLogicalId("scoringLambdaFunction");
+
+    // API Gateway permissions
+    scoringLambdaFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/agenda*`,
+    });
+
+    
+    // Bedrock permissions
+    const scoringBedrockPolicyStatement = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["bedrock:InvokeModel"],
+      resources: [
+        `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1`,
+        `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-embed-text-v2:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-8b-instruct-v1:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/mistral.mistral-large-2402-v1:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-text-express-v1`,
+      ],
+    });
+    textGenLambdaDockerFunc.addToRolePolicy(textGenBedrockPolicyStatement);
+
+    // Secrets Manager access
+    textGenLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+        ],
+      })
+    );
+
+
     // Waf Firewall
     const waf = new wafv2.CfnWebACL(this, `${id}-waf`, {
       description: "RDI waf with OWASP",
