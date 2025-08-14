@@ -71,6 +71,14 @@ exports.handler = async (event) => {
 
         const agenda_id = agendaResult[0].id_research_agenda;
 
+        await sqlConnection`
+    INSERT INTO research_agenda_prompts (research_agenda_id, prompt_type, prompt_text, is_default)
+    SELECT ${agenda_id}, 'general_rag', prompt_text, false
+    FROM research_agenda_prompts 
+    WHERE research_agenda_id IS NULL AND prompt_type = 'general_rag' AND is_default = true
+    LIMIT 1
+  `;
+
         // Insert context documents
         for (const doc of context_documents) {
           const { document_name, file_path, description } = doc;

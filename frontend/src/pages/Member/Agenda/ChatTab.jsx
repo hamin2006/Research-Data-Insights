@@ -73,11 +73,19 @@ useEffect(() => {
 
       if (response.ok) {
         const sessions = await response.json();
-        setChatSessions(sessions);
+        // Sort sessions by updated_at descending (most recent first)
+        const sortedSessions = sessions.sort((a, b) => 
+          new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
+        );
         
-        // Only set sessionId if we don't have one yet
-        if (sessions.length > 0) {
-          setSessionId(sessions[0].id_chat_session);
+        setChatSessions(sortedSessions);
+        
+        // Load the most recent session (first in sorted array)
+        if (sortedSessions.length > 0) {
+          const latestSession = sortedSessions[0];
+          setSessionId(latestSession.id_chat_session);
+          // Load messages for the latest session
+          loadSession(latestSession.id_chat_session);
         } else {
           // Create new session if none exist
           createNewSession();
@@ -92,6 +100,7 @@ useEffect(() => {
     initializeSessions();
   }
 }, [agendaId, sessionId]);
+
  
 
 const createNewSession = async () => {
@@ -433,16 +442,16 @@ const formatMessageContent = (content) => {
             <Paper
               sx={{
                 p: 2,
-                backgroundColor: msg.sender === "user" ? "#8B5CF6" : "transparent",
+                backgroundColor: msg.sender === "user" ? "#8B5CF6" : "white",
                 color: msg.sender === "user" ? "white" : "#1F2937",
                 border: "none",
                 maxWidth: "100%",
                 wordBreak: "break-word",
               }}
             >
-<Typography variant="body1" sx={{ mb: 0.5, whiteSpace: 'pre-line' }}>
-  {msg.sender === 'ai' ? formatMessageContent(msg.content) : msg.content}
-</Typography>
+        <Typography variant="body1" sx={{ mb: 0.5, whiteSpace: 'pre-line' }}>
+          {msg.sender === 'ai' ? formatMessageContent(msg.content) : msg.content}
+        </Typography>
 
               <Typography
                 variant="caption"
@@ -567,7 +576,7 @@ const formatMessageContent = (content) => {
               size="small"
             >
               <MenuItem value="context">Context Documents</MenuItem>
-              <MenuItem value="observation">Research Observations</MenuItem>
+              <MenuItem value="observations">Research Observations</MenuItem>
             </Select>
           </FormControl>
 

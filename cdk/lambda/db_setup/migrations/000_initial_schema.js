@@ -3,8 +3,17 @@ exports.up = (pgm) => {
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS "vector";
 
-    CREATE TYPE upload_status AS ENUM ('uploaded', 'processing', 'failed', 'skipped');
-    CREATE TYPE prompt_type AS ENUM ('self_aggregation', 'general_rag', 'scoring');
+    DO $$ BEGIN
+        CREATE TYPE upload_status AS ENUM ('uploaded', 'processing', 'failed', 'skipped');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+
+    DO $$ BEGIN
+        CREATE TYPE prompt_type AS ENUM ('self_aggregation', 'general_rag', 'scoring');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
 
     CREATE TABLE IF NOT EXISTS "users" (
         "user_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
