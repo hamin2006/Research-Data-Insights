@@ -235,7 +235,6 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         output_buffer.seek(0)
         doc_texts = output_buffer.read().decode('utf-8')
         
-        doc_texts = doc_texts.replace('\x00', '')
         doc_chunks = text_splitter.create_documents([doc_texts])
         
         head, _, tail = filename.partition("_page_")

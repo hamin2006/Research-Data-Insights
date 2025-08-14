@@ -59,7 +59,6 @@ export default function ChatTab() {
 // Replace your sessionId state and useEffects with:
 const [sessionId, setSessionId] = useState(null);
 
-// Single useEffect to handle session initialization
 useEffect(() => {
   const initializeSessions = async () => {
     if (!agendaId) return;
@@ -68,7 +67,6 @@ useEffect(() => {
       const session = await fetchAuthSession();
       const token = session.tokens.idToken;
 
-      // Fetch existing sessions
       const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`, {
         headers: { Authorization: token }
       });
@@ -77,13 +75,12 @@ useEffect(() => {
         const sessions = await response.json();
         setChatSessions(sessions);
         
-        // If no sessionId set and sessions exist, use the first one
-        if (!sessionId && sessions.length > 0) {
+        // Only set sessionId if we don't have one yet
+        if (sessions.length > 0) {
           setSessionId(sessions[0].id_chat_session);
-        }
-        // If no sessions exist, create a new one
-        else if (!sessionId && sessions.length === 0) {
-          await createNewSession();
+        } else {
+          // Create new session if none exist
+          createNewSession();
         }
       }
     } catch (error) {
@@ -91,8 +88,11 @@ useEffect(() => {
     }
   };
 
-  initializeSessions();
-}, [agendaId]); // Remove sessionId from dependencies
+  if (agendaId && !sessionId) { // Only run if we don't have a sessionId
+    initializeSessions();
+  }
+}, [agendaId, sessionId]);
+ 
 
 const createNewSession = async () => {
   try {
@@ -244,6 +244,8 @@ const handleModelChange = (newModel) => {
  const handleSendMessage = async () => {
   if (!message.trim()) return;
 
+  const currentMessage = message;
+
   const userMessage = {
     id: messages.length + 1,
     content: message,
@@ -271,7 +273,7 @@ const handleModelChange = (newModel) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message_content: message,
+        message_content: currentMessage,
         selected_documents: selectedDocs
       })
     });
