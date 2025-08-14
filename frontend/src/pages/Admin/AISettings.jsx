@@ -24,7 +24,7 @@ function AISettings() {
     const loadLimit = async () => {
       try {
         const session = await fetchAuthSession();
-        const token = session.tokens.idToken;
+        var token = session.tokens.idToken;
 
         const response = await fetch(
           `${import.meta.env.VITE_API_ENDPOINT}admin/message_limit`,
@@ -41,6 +41,10 @@ function AISettings() {
           const res = await response.json();
           console.log(res);
           setTempLimit(res.value);
+          setDailyMessageLimit(res.value);
+          if (res.value === "Infinity") {
+            setNoLimit(true);
+          }
         }
       } catch (error) {
         console.error("Error loading message limit:", error);
@@ -50,8 +54,33 @@ function AISettings() {
     loadLimit();
   }, []);
 
-  const handleSave = () => {
-    setDailyMessageLimit(noLimit ? null : tempLimit); // Save null if no limit
+  const handleSave = async () => {
+    try {
+      const session = await fetchAuthSession();
+      var token = session.tokens.idToken;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}admin/message_limit`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            value: noLimit ? "Infinity" : tempLimit.toString(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to save message limit");
+      }
+    } catch (error) {
+      console.error("Error saving message limit:", error);
+    }
+
+    setDailyMessageLimit(noLimit ? Infinity : tempLimit); // Save Infinity if no limit
     setModalOpen(false);
   };
 
@@ -59,7 +88,8 @@ function AISettings() {
   const handleNoLimitChange = (event) => {
     setNoLimit(event.target.checked);
     if (event.target.checked) {
-      setTempLimit(0); // Clear limit when checkbox is checked
+      setTempLimit(Infinity); // Clear limit when checkbox is checked
+      setDailyMessageLimit(Infinity); // Set daily limit to Infinity
     } else {
       setTempLimit(dailyMessageLimit); // Restore previous limit when unchecked
     }
@@ -104,12 +134,13 @@ function AISettings() {
                 step={1}
                 marks={[
                   { value: 1, label: "1" },
+                  { value: 50, label: "50" },
+                  { value: 100, label: "100" },
+                  { value: 150, label: "150" },
+                  { value: 200, label: "200" },
                   { value: 250, label: "250" },
-                  { value: 500, label: "500" },
-                  { value: 750, label: "750" },
-                  { value: 1000, label: "1000" },
                 ]}
-                valueLabelDisplay="on"
+                valueLabelDisplay={noLimit ? "off" : "on"}
                 disabled={noLimit} // Disable when no limit is checked
                 sx={{
                   color: "#8B5CF6",
@@ -120,34 +151,51 @@ function AISettings() {
               />
             </Box>
 
-            <Typography
-              variant="body1"
+            <Box
               sx={{
                 mt: 2,
                 textAlign: "center",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                textTransform: "capitalize",
-                fontWeight: "bold",
               }}
             >
-              Current limit:{" "}
+              <Typography
+                component="span"
+                variant="body1"
+                sx={{
+                  textTransform: "capitalize",
+                  fontWeight: "bold",
+                }}
+              >
+                Current limit:
+              </Typography>
+
               <TextField
-                value={tempLimit || 1}
+                value={noLimit ? "Infinite" : tempLimit}
                 onChange={(e) => setTempLimit(e.target.value)}
-                type="number"
-                disabled={noLimit} // Disable when no limit is checked
-                inputProps={{ min: 1, max: 250 }}
+                type="string"
+                disabled={noLimit}
+                inputProps={{ min: 1, max: Infinity }}
                 sx={{
                   p: 0,
                   mx: 1,
-                  width: 70,
+                  width: noLimit ? 80 : 70,
                   height: 50,
                 }}
-              />{" "}
-              messages per day
-            </Typography>
+              />
+
+              <Typography
+                component="span"
+                variant="body1"
+                sx={{
+                  textTransform: "capitalize",
+                  fontWeight: "bold",
+                }}
+              >
+                messages per day
+              </Typography>
+            </Box>
           </Box>
           <FormControlLabel
             control={

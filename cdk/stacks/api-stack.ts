@@ -1124,7 +1124,7 @@ export class ApiGatewayStack extends cdk.Stack {
     lambdaAdminFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ["ssm:GetParameter"],
+        actions: ["ssm:GetParameter", "ssm:PutParameter"],
         resources: [messageLimitParameter.parameterArn],
       })
     );
@@ -1429,12 +1429,9 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       `${id}-ScoringLambdaFunction`,
       {
-        code: lambda.DockerImageCode.fromEcr(
-          props.ecrRepositories["scoring"],
-          {
-            tagOrDigest: "latest",
-          }
-        ),
+        code: lambda.DockerImageCode.fromEcr(props.ecrRepositories["scoring"], {
+          tagOrDigest: "latest",
+        }),
         memorySize: 1024,
         timeout: cdk.Duration.seconds(300),
         vpc: vpcStack.vpc,
@@ -1462,7 +1459,6 @@ export class ApiGatewayStack extends cdk.Stack {
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/agenda*`,
     });
 
-    
     // Bedrock permissions
     const scoringBedrockPolicyStatement = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -1488,7 +1484,6 @@ export class ApiGatewayStack extends cdk.Stack {
         ],
       })
     );
-
 
     // Waf Firewall
     const waf = new wafv2.CfnWebACL(this, `${id}-waf`, {

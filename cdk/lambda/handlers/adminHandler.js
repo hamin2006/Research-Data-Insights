@@ -1,6 +1,10 @@
 // const { v4: uuidv4 } = require('uuid')
 const { initializeConnection } = require("./initializeConnection");
-const { SSMClient, GetParameterCommand } = require("@aws-sdk/client-ssm"); // Changed from await import
+const {
+  SSMClient,
+  GetParameterCommand,
+  PutParameterCommand,
+} = require("@aws-sdk/client-ssm"); // Changed from await import
 let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
   process.env;
 const {
@@ -96,6 +100,21 @@ exports.handler = async (event) => {
           new GetParameterCommand({ Name: process.env.MESSAGE_LIMIT })
         );
         response.body = JSON.stringify({ value: result.Parameter.Value });
+        break;
+
+      case "POST /admin/message_limit":
+        if (event.body) {
+          const { value } = JSON.parse(event.body);
+          await ssm.send(
+            new PutParameterCommand({
+              Name: process.env.MESSAGE_LIMIT,
+              Value: String(value),
+              Type: "String",
+              Overwrite: true,
+            })
+          );
+          response.body = JSON.stringify({ success: true });
+        }
         break;
 
       default:
