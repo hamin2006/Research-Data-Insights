@@ -218,6 +218,38 @@ def handler(event, context):
                 "body": json.dumps(f"File inserted, but error updating vectorstore: {e}")
             }
 
+        connection = connect_to_db()
+        if connection is None:
+            logger.error("Database connection failed. Unable to update ingestion status.")
+            return
+
+        try:
+            if document_type == "context_documents":
+                query = """
+                    UPDATE context_documents
+                    SET ingestion_status = 'uploaded'
+                    WHERE id_context_doc = %s;
+                """
+            elif document_type == "observation_documents":
+                query = """
+                    UPDATE research_observations
+                    SET ingestion_status = 'uploaded'
+                    WHERE id_research_observations = %s;
+                """
+            cur = connection.cursor()
+            cur.execute(query, (doc_id,))
+            result = cur.fetchone()
+
+            cur.close()
+            logger.info(f"Updated ingestion status for {document_type} with ID {doc_id} to 'uploaded'.")
+
+        except Exception as e:
+            if cur:
+                cur.close()
+            connection.rollback()
+            logger.error(f"Error updating ingestion status: {e}")
+            raise            
+
         return {
             "statusCode": 200,
             "body": json.dumps({

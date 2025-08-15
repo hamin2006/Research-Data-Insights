@@ -174,7 +174,7 @@ function AISettings() {
               <TextField
                 value={noLimit ? "Infinite" : tempLimit}
                 onChange={(e) => setTempLimit(e.target.value)}
-                type="string"
+                type={noLimit ? "string" : "number"}
                 disabled={noLimit}
                 inputProps={{ min: 1, max: Infinity }}
                 sx={{

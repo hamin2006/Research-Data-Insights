@@ -58,7 +58,7 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
               document_name: fileName,
               file_path: key,
               //description: description,
-              upload_status: "uploaded",
+              upload_status: "processing",
             }),
           }
         );

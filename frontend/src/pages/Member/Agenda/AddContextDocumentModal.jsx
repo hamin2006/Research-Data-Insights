@@ -60,7 +60,7 @@ export default function AddContextDocumentModal({
               document_name: fileName,
               file_path: key,
               description: description,
-              upload_status: "uploaded",
+              upload_status: "processing",
             }),
           }
         );
