@@ -238,7 +238,7 @@ def handler(event, context):
                 """
             cur = connection.cursor()
             cur.execute(query, (doc_id,))
-            result = cur.fetchone()
+            connection.commit()
 
             cur.close()
             logger.info(f"Updated ingestion status for {document_type} with ID {doc_id} to 'uploaded'.")

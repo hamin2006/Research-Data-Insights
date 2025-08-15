@@ -10,6 +10,7 @@ import {
   Box,
   Typography,
   styled,
+  LinearProgress,
 } from "@mui/material";
 import { Upload } from "@mui/icons-material";
 import { fetchAuthSession } from "aws-amplify/auth";
@@ -17,10 +18,12 @@ import { fetchAuthSession } from "aws-amplify/auth";
 export default function AddResponseModal({ open, onClose, onAddGroup }) {
   const [fileName, setFileName] = useState("");
   const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
   const { agendaId } = useParams();
   //const [description, setDescription] = useState("");
 
   const handleSubmit = async (e) => {
+    setLoading(true);
     e.preventDefault();
     const session = await fetchAuthSession();
     const token = session.tokens.idToken;
@@ -68,12 +71,13 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
           body: file,
           headers: { "Content-Type": file.type },
         });
+        setLoading(false);
       }
 
       onAddGroup({
         document_name: fileName,
         format: file.type,
-        upload_status: "uploaded",
+        upload_status: "processing",
       });
     } catch (error) {
       console.error("Error uploading response group:", error);
@@ -121,6 +125,7 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
           <TextField
             fullWidth
             label="File Name"
+            disabled={loading}
             value={fileName}
             onChange={(e) => setFileName(e.target.value)}
             placeholder="Enter response group name..."
@@ -139,6 +144,7 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
           <Button
             component="label"
             role={undefined}
+            disabled={loading}
             startIcon={
               <Upload sx={{ fontSize: 32, color: "#8B5CF6", mb: 1 }} />
             }
@@ -170,13 +176,13 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 1 }}>
-        <Button onClick={handleClose} color="inherit">
+        <Button onClick={handleClose} color="inherit" disabled={loading}>
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={!fileName || !file}
+          disabled={!fileName || !file || loading}
           sx={{
             backgroundColor: "#8B5CF6",
             "&:hover": {
@@ -187,6 +193,7 @@ export default function AddResponseModal({ open, onClose, onAddGroup }) {
           Add Response Group
         </Button>
       </DialogActions>
+      <LinearProgress hidden={!loading} />
     </Dialog>
   );
 }

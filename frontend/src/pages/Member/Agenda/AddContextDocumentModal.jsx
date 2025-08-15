@@ -10,6 +10,7 @@ import {
   Box,
   Typography,
   styled,
+  LinearProgress,
 } from "@mui/material";
 import { Upload, Description } from "@mui/icons-material";
 import { fetchAuthSession } from "aws-amplify/auth";
@@ -22,9 +23,11 @@ export default function AddContextDocumentModal({
   const [fileName, setFileName] = useState("");
   const [file, setFile] = useState(null);
   const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
   const { agendaId } = useParams();
 
   const handleSubmit = async (e) => {
+    setLoading(true);
     e.preventDefault();
     const session = await fetchAuthSession();
     const token = session.tokens.idToken;
@@ -71,6 +74,7 @@ export default function AddContextDocumentModal({
           body: file,
           headers: { "Content-Type": file.type },
         });
+        setLoading(false);
       }
 
       onAddDocument({
@@ -126,6 +130,7 @@ export default function AddContextDocumentModal({
           <TextField
             fullWidth
             label="File Name"
+            disabled={loading}
             value={fileName}
             onChange={(e) => setFileName(e.target.value)}
             placeholder="Enter document name..."
@@ -134,6 +139,7 @@ export default function AddContextDocumentModal({
           <TextField
             fullWidth
             label="Description"
+            disabled={loading}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Enter document description..."
@@ -144,6 +150,7 @@ export default function AddContextDocumentModal({
           <Button
             component="label"
             role={undefined}
+            disabled={loading}
             startIcon={
               <Upload sx={{ fontSize: 32, color: "#8B5CF6", mb: 1 }} />
             }
@@ -176,13 +183,13 @@ export default function AddContextDocumentModal({
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 1 }}>
-        <Button onClick={handleClose} color="inherit">
+        <Button onClick={handleClose} color="inherit" disabled={loading}>
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={!fileName || !file}
+          disabled={!fileName || !file || loading}
           sx={{
             backgroundColor: "#8B5CF6",
             "&:hover": {
@@ -193,6 +200,7 @@ export default function AddContextDocumentModal({
           Add Document
         </Button>
       </DialogActions>
+      <LinearProgress hidden={!loading} />
     </Dialog>
   );
 }
