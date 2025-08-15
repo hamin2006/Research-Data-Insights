@@ -227,13 +227,13 @@ def handler(event, context):
             if document_type == "context_documents":
                 query = """
                     UPDATE context_documents
-                    SET status = 'uploaded'
+                    SET upload_status = 'uploaded'
                     WHERE id_context_doc = %s;
                 """
             elif document_type == "observation_documents":
                 query = """
                     UPDATE research_observations
-                    SET status = 'uploaded'
+                    SET upload_status = 'uploaded'
                     WHERE id_research_observations = %s;
                 """
             cur = connection.cursor()
