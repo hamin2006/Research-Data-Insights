@@ -76,7 +76,7 @@ export default function AddContextDocumentModal({
       onAddDocument({
         document_name: fileName,
         description,
-        upload_status: "uploaded",
+        upload_status: "processing",
       });
     } catch (error) {
       console.error("Error uploading document:", error);
