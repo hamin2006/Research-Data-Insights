@@ -226,6 +226,109 @@ exports.handler = async (event) => {
         break;
       }
 
+      case "GET /agenda/{agenda_id}/ai-settings": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
+
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
+
+        if (!agenda_id) {
+          throw new Error("Missing agenda ID");
+        }
+
+        // Get user_id
+        const userRow = await sqlConnection`
+    SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+  `;
+
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found in users table");
+        }
+
+        const user_id = userRow[0].user_id;
+
+        // Check if user is owner OR collaborator
+        const accessCheck = await sqlConnection`
+    SELECT ra.* FROM research_agenda ra
+    LEFT JOIN agenda_collaborators ac ON ra.id_research_agenda = ac.research_agenda_id
+    WHERE ra.id_research_agenda = ${agenda_id} 
+    AND (ra.user_id = ${user_id} OR ac.user_id = ${user_id})
+    LIMIT 1
+  `;
+
+        if (!accessCheck || accessCheck.length === 0) {
+          throw new Error("Agenda not found or access denied");
+        }
+
+        const hyperparameters = await sqlConnection`
+    SELECT hyperparameter_settings FROM research_agenda 
+    WHERE id_research_agenda = ${agenda_id}
+  `;
+
+        response.body = JSON.stringify({
+          ...accessCheck[0],
+          hyperparameters: hyperparameters,
+        });
+        break;
+      }
+
+      case "PATCH /agenda/{agenda_id}/ai-settings": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const agenda_id = event.pathParameters?.agenda_id;
+        const body = JSON.parse(event.body || "{}");
+        const { hyperparameter_settings } = body;
+
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
+
+        if (!agenda_id) {
+          throw new Error("Missing agenda ID");
+        }
+
+        // Get user_id
+        const userRow = await sqlConnection`
+    SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+  `;
+
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found in users table");
+        }
+
+        const user_id = userRow[0].user_id;
+
+        // Check if user is owner OR collaborator
+        const accessCheck = await sqlConnection`
+    SELECT ra.* FROM research_agenda ra
+    LEFT JOIN agenda_collaborators ac ON ra.id_research_agenda = ac.research_agenda_id
+    WHERE ra.id_research_agenda = ${agenda_id} 
+    AND (ra.user_id = ${user_id} OR ac.user_id = ${user_id})
+    LIMIT 1
+  `;
+
+        if (!accessCheck || accessCheck.length === 0) {
+          throw new Error("Agenda not found or access denied");
+        }
+
+        if (typeof hyperparameter_settings === "string") {
+          hyperparameter_settings = JSON.parse(hyperparameter_settings);
+        }
+
+        await sqlConnection`
+          UPDATE research_agenda 
+          SET hyperparameter_settings = ${hyperparameter_settings}
+          WHERE id_research_agenda = ${agenda_id}
+        `;
+
+        response.body = JSON.stringify({
+          message: "AI settings updated successfully",
+          hyperparameter_settings,
+        });
+        break;
+      }
+
       case "GET /agenda/{agenda_id}/collaborators": {
         const cognito_id = event.requestContext?.authorizer?.userId;
         const agenda_id = event.pathParameters?.agenda_id;

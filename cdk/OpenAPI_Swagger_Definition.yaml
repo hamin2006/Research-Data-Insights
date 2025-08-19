@@ -913,6 +913,83 @@ paths:
         httpMethod: "POST"
         type: "aws_proxy"
 
+  /agenda/{agenda_id}/ai-settings:
+    parameters:
+      - name: agenda_id
+        in: path
+        required: true
+        schema:
+          type: string
+    options:
+      summary: CORS support
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Researcher
+      summary: Get agenda hyperparameters
+      operationId: getAISettings
+      responses:
+        "200":
+          description: List of hyperparameters
+        "401":
+          description: Unauthorized
+      security:
+        - researcherAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    patch:
+      tags:
+        - Researcher
+      summary: Update agenda hyperparameters
+      operationId: updateAISettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hyperparameter_settings:
+                  type: object
+              required:
+                - hyperparameter_settings
+      responses:
+        "200":
+          description: AI settings updated
+        "401":
+          description: Unauthorized
+      security:
+        - researcherAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
   /agenda/{agenda_id}/collaborators/{collaborator_id}:
     parameters:
       - name: agenda_id

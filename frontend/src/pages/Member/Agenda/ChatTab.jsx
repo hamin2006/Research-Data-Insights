@@ -24,16 +24,15 @@ import {
   Add,
   Send,
   Settings,
-  EditNote,
   Close,
   SmartToy,
   Person,
 } from "@mui/icons-material";
-import { fetchAuthSession } from 'aws-amplify/auth';
-import { useParams } from 'react-router-dom';
+import { fetchAuthSession } from "aws-amplify/auth";
+import { useParams } from "react-router-dom";
 
 export default function ChatTab() {
-  const { agendaId } = useParams(); 
+  const { agendaId } = useParams();
   const [chatSessions, setChatSessions] = useState([]);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
@@ -54,111 +53,133 @@ export default function ChatTab() {
 
   const [contextDocuments, setContextDocuments] = useState([]);
   const [responseGroups, setResponseGroups] = useState([]);
-  const [selectedDocumentType, setSelectedDocumentType] = useState('context'); 
+  const [selectedDocumentType, setSelectedDocumentType] = useState("context");
 
-// Replace your sessionId state and useEffects with:
-const [sessionId, setSessionId] = useState(null);
+  // Replace your sessionId state and useEffects with:
+  const [sessionId, setSessionId] = useState(null);
 
-useEffect(() => {
-  const initializeSessions = async () => {
-    if (!agendaId) return;
-    
+  useEffect(() => {
+    const initializeSessions = async () => {
+      if (!agendaId) return;
+
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`,
+          {
+            headers: { Authorization: token },
+          }
+        );
+
+        if (response.ok) {
+          const sessions = await response.json();
+          // Sort sessions by updated_at descending (most recent first)
+          const sortedSessions = sessions.sort(
+            (a, b) =>
+              new Date(b.updated_at || b.created_at) -
+              new Date(a.updated_at || a.created_at)
+          );
+
+          setChatSessions(sortedSessions);
+
+          // Load the most recent session (first in sorted array)
+          if (sortedSessions.length > 0) {
+            const latestSession = sortedSessions[0];
+            setSessionId(latestSession.id_chat_session);
+            // Load messages for the latest session
+            loadSession(latestSession.id_chat_session);
+          } else {
+            // Create new session if none exist
+            createNewSession();
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing sessions:", error);
+      }
+    };
+
+    if (agendaId && !sessionId) {
+      // Only run if we don't have a sessionId
+      initializeSessions();
+    }
+  }, [agendaId, sessionId]);
+
+  const createNewSession = async () => {
     try {
       const session = await fetchAuthSession();
       const token = session.tokens.idToken;
 
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`, {
-        headers: { Authorization: token }
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ session_name: "New Chat Session" }),
+        }
+      );
 
       if (response.ok) {
-        const sessions = await response.json();
-        // Sort sessions by updated_at descending (most recent first)
-        const sortedSessions = sessions.sort((a, b) => 
-          new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)
-        );
-        
-        setChatSessions(sortedSessions);
-        
-        // Load the most recent session (first in sorted array)
-        if (sortedSessions.length > 0) {
-          const latestSession = sortedSessions[0];
-          setSessionId(latestSession.id_chat_session);
-          // Load messages for the latest session
-          loadSession(latestSession.id_chat_session);
-        } else {
-          // Create new session if none exist
-          createNewSession();
-        }
+        const newSession = await response.json();
+        setSessionId(newSession.id_chat_session);
+        setChatSessions((prev) => [newSession, ...prev]);
+        setMessages([
+          {
+            id: 1,
+            content:
+              "Hello! I'm your AI assistant for research analysis. How can I help you today?",
+            sender: "ai",
+            timestamp: new Date(),
+          },
+        ]);
+        setIsChatSessionsOpen(false);
       }
     } catch (error) {
-      console.error('Error initializing sessions:', error);
+      console.error("Error creating session:", error);
     }
   };
 
-  if (agendaId && !sessionId) { // Only run if we don't have a sessionId
-    initializeSessions();
-  }
-}, [agendaId, sessionId]);
+  const loadSession = async (sessionId) => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
 
- 
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_ENDPOINT
+        }agenda/${agendaId}/sessions/${sessionId}/messages`,
+        {
+          headers: { Authorization: token },
+        }
+      );
 
-const createNewSession = async () => {
-  try {
-    const session = await fetchAuthSession();
-    const token = session.tokens.idToken;
-
-    const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions`, {
-      method: 'POST',
-      headers: {
-        Authorization: token,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ session_name: 'New Chat Session' })
-    });
-
-    if (response.ok) {
-      const newSession = await response.json();
-      setSessionId(newSession.id_chat_session);
-      setChatSessions(prev => [newSession, ...prev]);
-      setMessages([{
-        id: 1,
-        content: "Hello! I'm your AI assistant for research analysis. How can I help you today?",
-        sender: "ai",
-        timestamp: new Date(),
-      }]);
-      setIsChatSessionsOpen(false);
+      if (response.ok) {
+        const sessionMessages = await response.json();
+        console.log(sessionMessages);
+        setMessages(
+          sessionMessages.length > 0
+            ? sessionMessages
+            : [
+                {
+                  id: 1,
+                  content:
+                    "Hello! I'm your AI assistant for research analysis. How can I help you today?",
+                  sender: "ai",
+                  timestamp: new Date(),
+                },
+              ]
+        );
+        setSessionId(sessionId);
+        setIsChatSessionsOpen(false);
+      }
+    } catch (error) {
+      console.error("Error loading session:", error);
     }
-  } catch (error) {
-    console.error('Error creating session:', error);
-  }
-};
-
-const loadSession = async (sessionId) => {
-  try {
-    const session = await fetchAuthSession();
-    const token = session.tokens.idToken;
-
-    const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/sessions/${sessionId}/messages`, {
-      headers: { Authorization: token }
-    });
-
-    if (response.ok) {
-      const sessionMessages = await response.json();
-      console.log(sessionMessages);
-      setMessages(sessionMessages.length > 0 ? sessionMessages : [{
-        id: 1,
-        content: "Hello! I'm your AI assistant for research analysis. How can I help you today?",
-        sender: "ai",
-        timestamp: new Date(),
-      }]);
-      setSessionId(sessionId);
-      setIsChatSessionsOpen(false);
-    }
-  } catch (error) {
-    console.error('Error loading session:', error);
-  }
-};
+  };
 
   // Fetch actual documents on component mount
   useEffect(() => {
@@ -167,33 +188,38 @@ const loadSession = async (sessionId) => {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
 
-        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
-          headers: {
-            Authorization: token,
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`,
+          {
+            headers: {
+              Authorization: token,
+            },
           }
-        });
+        );
 
         const agendaData = await response.json();
-        
+
         // Set context documents
-        const contextDocs = agendaData.context_documents?.map(doc => ({
-          id: doc.id_context_doc,
-          name: doc.document_name,
-          description: doc.description,
-          checked: true // Default to checked
-        })) || [];
+        const contextDocs =
+          agendaData.context_documents?.map((doc) => ({
+            id: doc.id_context_doc,
+            name: doc.document_name,
+            description: doc.description,
+            checked: true, // Default to checked
+          })) || [];
 
         // Set response groups (research observations)
-        const responseObs = agendaData.research_observations?.map(obs => ({
-          id: obs.id_research_observations,
-          name: obs.document_name,
-          checked: true // Default to checked
-        })) || [];
+        const responseObs =
+          agendaData.research_observations?.map((obs) => ({
+            id: obs.id_research_observations,
+            name: obs.document_name,
+            checked: true, // Default to checked
+          })) || [];
 
         setContextDocuments(contextDocs);
         setResponseGroups(responseObs);
       } catch (error) {
-        console.error('Error fetching documents:', error);
+        console.error("Error fetching documents:", error);
       }
     };
 
@@ -211,121 +237,130 @@ const loadSession = async (sessionId) => {
   }, [messages]);
 
   // Add these state variables after your existing useState declarations:
-const [settingsChanged, setSettingsChanged] = useState(false);
+  const [settingsChanged, setSettingsChanged] = useState(false);
 
-// Add save settings function:
-const saveSettings = () => {
-  // Settings are already saved in state, just close drawer and reset flag
-  setSettingsChanged(false);
-  setIsSettingsOpen(false);
-};
-
-// Update document checkbox handlers:
-const handleDocumentChange = (docId, checked, type) => {
-  if (type === 'context') {
-    setContextDocuments(prev => 
-      prev.map(d => d.id === docId ? {...d, checked} : d)
-    );
-  } else {
-    setResponseGroups(prev => 
-      prev.map(d => d.id === docId ? {...d, checked} : d)
-    );
-  }
-  setSettingsChanged(true);
-};
-
-// Update model selection handler:
-const handleModelChange = (newModel) => {
-  setSelectedModel(newModel);
-  setSettingsChanged(true);
-};
-
-
-  const getModelId = (modelName) => {
-  const modelMap = {
-    "Meta Llama 3 8b": "meta.llama3-8b-instruct-v1:0",
-    "Mistral Large 2402": "mistral.mistral-large-2402-v1:0", 
-    "Amazon Titan Express V1": "amazon.titan-text-express-v1"
-  };
-  return modelMap[modelName] || "meta.llama3-8b-instruct-v1:0";
-};
-
- const handleSendMessage = async () => {
-  if (!message.trim()) return;
-
-  const currentMessage = message;
-
-  const userMessage = {
-    id: messages.length + 1,
-    content: message,
-    sender: "user",
-    timestamp: new Date(),
+  // Add save settings function:
+  const saveSettings = () => {
+    // Settings are already saved in state, just close drawer and reset flag
+    setSettingsChanged(false);
+    setIsSettingsOpen(false);
   };
 
-  setMessages((prev) => [...prev, userMessage]);
-  setMessage("");
-  setIsTyping(true);
-
-  try {
-    const session = await fetchAuthSession();
-    const token = session.tokens.idToken;
-
-    // Get selected document IDs
-    const selectedDocs = selectedDocumentType === 'context' 
-      ? contextDocuments.filter(d => d.checked).map(d => d.id)
-      : responseGroups.filter(d => d.checked).map(d => d.id);
-
-    const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/text_generation?session_id=${sessionId}&document_type=${selectedDocumentType}&agenda_id=${agendaId}&model_id=${getModelId(selectedModel)}`, {
-      method: "POST",
-      headers: {
-        Authorization: token,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message_content: currentMessage,
-        selected_documents: selectedDocs
-      })
-    });
-
-    const result = await response.json();
-
-    console.log('Backend response:', result);
-    
-    const aiMessage = {
-      id: messages.length + 2,
-      content: result.response || result.llm_output || "I couldn't process your request.",
-      sender: "ai",
-      timestamp: new Date(),
-    };
-    
-    setMessages((prev) => [...prev, aiMessage]);
-
-    // Update session name if it was generated
-    if (result.session_name) {
-      setChatSessions(prev => 
-        prev.map(s => 
-          s.id_chat_session === sessionId 
-            ? { ...s, session_name: result.session_name }
-            : s
-        )
+  // Update document checkbox handlers:
+  const handleDocumentChange = (docId, checked, type) => {
+    if (type === "context") {
+      setContextDocuments((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, checked } : d))
+      );
+    } else {
+      setResponseGroups((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, checked } : d))
       );
     }
+    setSettingsChanged(true);
+  };
 
-  } catch (error) {
-    console.error('RAG query failed:', error);
-    const errorMessage = {
-      id: messages.length + 2,
-      content: "Sorry, I encountered an error processing your request. Please try again.",
-      sender: "ai",
+  // Update model selection handler:
+  const handleModelChange = (newModel) => {
+    setSelectedModel(newModel);
+    setSettingsChanged(true);
+  };
+
+  const getModelId = (modelName) => {
+    const modelMap = {
+      "Meta Llama 3 8b": "meta.llama3-8b-instruct-v1:0",
+      "Mistral Large 2402": "mistral.mistral-large-2402-v1:0",
+      "Amazon Titan Express V1": "amazon.titan-text-express-v1",
+    };
+    return modelMap[modelName] || "meta.llama3-8b-instruct-v1:0";
+  };
+
+  const handleSendMessage = async () => {
+    if (!message.trim()) return;
+
+    const currentMessage = message;
+
+    const userMessage = {
+      id: messages.length + 1,
+      content: message,
+      sender: "user",
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, errorMessage]);
-  } finally {
-    setIsTyping(false);
-  }
-};
 
-  
+    setMessages((prev) => [...prev, userMessage]);
+    setMessage("");
+    setIsTyping(true);
+
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      // Get selected document IDs
+      const selectedDocs =
+        selectedDocumentType === "context"
+          ? contextDocuments.filter((d) => d.checked).map((d) => d.id)
+          : responseGroups.filter((d) => d.checked).map((d) => d.id);
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_ENDPOINT
+        }agenda/${agendaId}/text_generation?session_id=${sessionId}&document_type=${selectedDocumentType}&agenda_id=${agendaId}&model_id=${getModelId(
+          selectedModel
+        )}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message_content: currentMessage,
+            selected_documents: selectedDocs,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      console.log("Backend response:", result);
+
+      const aiMessage = {
+        id: messages.length + 2,
+        content:
+          result.response ||
+          result.llm_output ||
+          "I couldn't process your request.",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, aiMessage]);
+
+      // Update session name if it was generated
+      if (result.session_name) {
+        setChatSessions((prev) =>
+          prev.map((s) =>
+            s.id_chat_session === sessionId
+              ? { ...s, session_name: result.session_name }
+              : s
+          )
+        );
+      }
+    } catch (error) {
+      console.error("RAG query failed:", error);
+      const errorMessage = {
+        id: messages.length + 2,
+        content:
+          "Sorry, I encountered an error processing your request. Please try again.",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -344,19 +379,20 @@ const handleModelChange = (newModel) => {
   };
 
   // Add this function after your other helper functions:
-const formatMessageContent = (content) => {
-  return content
-    // Remove excessive asterisks
-    .replace(/\*{2,}/g, '')
-    // Add line breaks after section headers (text followed by colon)
-    .replace(/([A-Z][^:\n]*:)/g, '\n$1\n')
-    // Clean up multiple line breaks
-    .replace(/\n{3,}/g, '\n\n')
-    // Add spacing around numbered lists
-    .replace(/(\d+\.\s)/g, '\n$1')
-    .trim();
-};
-
+  const formatMessageContent = (content) => {
+    return (
+      content
+        // Remove excessive asterisks
+        .replace(/\*{2,}/g, "")
+        // Add line breaks after section headers (text followed by colon)
+        .replace(/([A-Z][^:\n]*:)/g, "\n$1\n")
+        // Clean up multiple line breaks
+        .replace(/\n{3,}/g, "\n\n")
+        // Add spacing around numbered lists
+        .replace(/(\d+\.\s)/g, "\n$1")
+        .trim()
+    );
+  };
 
   return (
     <Box
@@ -394,7 +430,7 @@ const formatMessageContent = (content) => {
               "&:hover": { backgroundColor: "#E5E7EB" },
             }}
           >
-            <EditNote />
+            <Add />
           </IconButton>
 
           <IconButton
@@ -449,9 +485,14 @@ const formatMessageContent = (content) => {
                 wordBreak: "break-word",
               }}
             >
-        <Typography variant="body1" sx={{ mb: 0.5, whiteSpace: 'pre-line' }}>
-          {msg.sender === 'ai' ? formatMessageContent(msg.content) : msg.content}
-        </Typography>
+              <Typography
+                variant="body1"
+                sx={{ mb: 0.5, whiteSpace: "pre-line" }}
+              >
+                {msg.sender === "ai"
+                  ? formatMessageContent(msg.content)
+                  : msg.content}
+              </Typography>
 
               <Typography
                 variant="caption"
@@ -541,15 +582,26 @@ const formatMessageContent = (content) => {
         sx={{ "& .MuiDrawer-paper": { width: 350, p: 0 } }}
       >
         <Box sx={{ p: 3, height: "100%", overflow: "auto" }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>Chat Settings</Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Chat Settings
+            </Typography>
             <IconButton onClick={() => setIsSettingsOpen(false)} size="small">
               <Close />
             </IconButton>
           </Box>
           <Divider sx={{ my: 1 }} />
 
-          <Typography variant="subtitle2" sx={{ mb: 2, color: "#374151", fontWeight: 600 }}>
+          <Typography
+            variant="subtitle2"
+            sx={{ mb: 2, color: "#374151", fontWeight: 600 }}
+          >
             AI Model
           </Typography>
           <FormControl fullWidth sx={{ mb: 3 }}>
@@ -560,13 +612,18 @@ const formatMessageContent = (content) => {
             >
               <MenuItem value="Meta Llama 3 8b">Meta Llama 3 8b</MenuItem>
               <MenuItem value="Mistral Large 2402">Mistral Large 2402</MenuItem>
-              <MenuItem value="Amazon Titan Express V1">Amazon Titan Express V1</MenuItem>
+              <MenuItem value="Amazon Titan Express V1">
+                Amazon Titan Express V1
+              </MenuItem>
             </Select>
           </FormControl>
 
           <Divider sx={{ my: 2 }} />
 
-          <Typography variant="subtitle2" sx={{ mb: 2, color: "#374151", fontWeight: 600 }}>
+          <Typography
+            variant="subtitle2"
+            sx={{ mb: 2, color: "#374151", fontWeight: 600 }}
+          >
             Document Source
           </Typography>
           <FormControl fullWidth sx={{ mb: 2 }}>
@@ -581,15 +638,27 @@ const formatMessageContent = (content) => {
           </FormControl>
 
           <Box sx={{ mb: 3 }}>
-            {(selectedDocumentType === 'context' ? contextDocuments : responseGroups).map((doc) => (
+            {(selectedDocumentType === "context"
+              ? contextDocuments
+              : responseGroups
+            ).map((doc) => (
               <FormControlLabel
                 key={doc.id}
                 control={
                   <Checkbox
                     checked={doc.checked}
-                    onChange={(e) => handleDocumentChange(doc.id, e.target.checked, selectedDocumentType)}
+                    onChange={(e) =>
+                      handleDocumentChange(
+                        doc.id,
+                        e.target.checked,
+                        selectedDocumentType
+                      )
+                    }
                     size="small"
-                    sx={{ color: "#8B5CF6", "&.Mui-checked": { color: "#8B5CF6" } }}
+                    sx={{
+                      color: "#8B5CF6",
+                      "&.Mui-checked": { color: "#8B5CF6" },
+                    }}
                   />
                 }
                 label={<Typography variant="body2">{doc.name}</Typography>}
@@ -608,15 +677,13 @@ const formatMessageContent = (content) => {
               backgroundColor: "#8B5CF6",
               "&:hover": { backgroundColor: "#7C3AED" },
               "&:disabled": { backgroundColor: "#D1D5DB" },
-              mt: 2
+              mt: 2,
             }}
           >
             Save Settings
           </Button>
         </Box>
       </Drawer>
-
-
 
       {/* Chat Sessions Drawer */}
       <Drawer
@@ -626,14 +693,21 @@ const formatMessageContent = (content) => {
         sx={{ "& .MuiDrawer-paper": { width: 350, p: 0 } }}
       >
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              p: 2,
+            }}
+          >
             <Typography variant="h6">Chat Sessions</Typography>
             <IconButton onClick={() => setIsChatSessionsOpen(false)}>
               <Close />
             </IconButton>
           </Box>
           <Divider />
-          
+
           <Box sx={{ p: 2 }}>
             <Button
               fullWidth
@@ -645,7 +719,7 @@ const formatMessageContent = (content) => {
               New Session
             </Button>
           </Box>
-          
+
           <List sx={{ flex: 1, overflow: "auto" }}>
             {chatSessions.map((session) => (
               <ListItem key={session.id_chat_session} disablePadding>
@@ -663,7 +737,6 @@ const formatMessageContent = (content) => {
           </List>
         </Box>
       </Drawer>
-
     </Box>
   );
 }

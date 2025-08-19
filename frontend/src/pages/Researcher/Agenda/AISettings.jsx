@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { fetchAuthSession } from "aws-amplify/auth";
 import {
   Box,
   Typography,
@@ -29,6 +31,7 @@ const availableModels = [
 ];
 
 export default function AISettings() {
+  const { agendaId } = useParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedModels, setSelectedModels] = useState([
     "meta-llama-3-8b",
@@ -39,10 +42,34 @@ export default function AISettings() {
     temperature: 0.7,
     topP: 0.9,
     topK: 40,
-    maxTokens: 2048,
-    frequencyPenalty: 0.0,
-    presencePenalty: 0.0,
   });
+
+  useEffect(() => {
+    const fetchHyperparameters = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/ai-settings`,
+          {
+            headers: {
+              Authorization: token,
+            },
+          }
+        );
+
+        const data = await response.json();
+        setHyperparameters(data.hyperparameters[0].hyperparameter_settings);
+      } catch (error) {
+        console.error("Error fetching hyperparameters:", error);
+      }
+    };
+
+    if (agendaId) {
+      fetchHyperparameters();
+    }
+  }, [agendaId]);
 
   const handleModelChange = (modelId) => {
     setSelectedModels((prev) =>
@@ -56,9 +83,41 @@ export default function AISettings() {
     setHyperparameters((prev) => ({ ...prev, [param]: value }));
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setModalOpen(false);
-    // Save settings logic here
+
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+      const hyperparameter_settings = {
+        temperature: hyperparameters.temperature,
+        topP: hyperparameters.topP,
+        topK: hyperparameters.topK,
+      };
+      console.log("Saving settings:", hyperparameter_settings);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/ai-settings`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
+          body: JSON.stringify({
+            hyperparameter_settings,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
+
+      console.log("Settings saved successfully");
+    } catch (error) {
+      console.error("Error saving settings:", error);
+    }
   };
 
   const hyperparameterConfigs = [
@@ -85,30 +144,6 @@ export default function AISettings() {
       max: 100,
       step: 1,
       description: "Limits vocabulary for each step",
-    },
-    {
-      key: "maxTokens",
-      label: "Max Tokens",
-      min: 1,
-      max: 4096,
-      step: 1,
-      description: "Maximum response length",
-    },
-    {
-      key: "frequencyPenalty",
-      label: "Frequency Penalty",
-      min: -2,
-      max: 2,
-      step: 0.1,
-      description: "Reduces repetition",
-    },
-    {
-      key: "presencePenalty",
-      label: "Presence Penalty",
-      min: -2,
-      max: 2,
-      step: 0.1,
-      description: "Encourages new topics",
     },
   ];
 
