@@ -148,7 +148,7 @@ export default function AgendaForm() {
               document_name: doc.document_name,
               file_path: key,
               description: doc.description,
-              upload_status: "uploaded",
+              upload_status: "processing",
             }),
           }
         );
@@ -195,7 +195,7 @@ export default function AgendaForm() {
             body: JSON.stringify({
               document_name: obs.document_name,
               file_path: key,
-              upload_status: "uploaded",
+              upload_status: "processing",
             }),
           }
         );
