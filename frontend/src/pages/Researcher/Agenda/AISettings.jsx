@@ -11,37 +11,46 @@ import {
   Slider,
   Grid,
   Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { Save } from "@mui/icons-material";
 import WarningModal from "../../../components/WarningModal";
 const availableModels = [
-  { id: "meta-llama-3-8b", name: "Llama 3 8b", provider: "Meta" },
-  { id: "meta-llama-3-70b", name: "Llama 3 70b", provider: "Meta" },
+  { id: "meta.llama3-8b-instruct-v1:0", name: "Llama 3 8b", provider: "Meta" },
   {
-    id: "amazon-titan-express-v1",
+    id: "meta.llama3-70b-instruct-v1:0",
+    name: "Llama 3 70b",
+    provider: "Meta",
+  },
+  {
+    id: "amazon.titan-text-express-v1",
     name: "Titan Express V1",
     provider: "Amazon",
   },
   {
-    id: "amazon-titan-lite-v1",
+    id: "amazon.titan-text-lite-v1",
     name: "Titan Lite V1",
     provider: "Amazon",
   },
-  { id: "mistral-large-2402", name: "Large 2402", provider: "Mistral" },
+  {
+    id: "mistral.mistral-large-2402-v1:0",
+    name: "Large 2402",
+    provider: "Mistral",
+  },
 ];
 
 export default function AISettings() {
   const { agendaId } = useParams();
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedModels, setSelectedModels] = useState([
-    "meta-llama-3-8b",
-    "amazon-titan-express-v1",
-    "mistral-large-2402",
-  ]);
+  const [selectedModels, setSelectedModels] = useState([]);
+  const [scoringMethod, setScoringMethod] = useState("Mean");
   const [hyperparameters, setHyperparameters] = useState({
-    temperature: 0.7,
-    topP: 0.9,
-    topK: 40,
+    temperature: 0,
+    topP: 0,
+    topK: 1,
   });
 
   useEffect(() => {
@@ -60,7 +69,9 @@ export default function AISettings() {
         );
 
         const data = await response.json();
-        setHyperparameters(data.hyperparameters[0].hyperparameter_settings);
+        setHyperparameters(data.hyperparameter_settings);
+        setScoringMethod(data.scoring_method);
+        setSelectedModels(data.scoring_models);
       } catch (error) {
         console.error("Error fetching hyperparameters:", error);
       }
@@ -106,9 +117,13 @@ export default function AISettings() {
           },
           body: JSON.stringify({
             hyperparameter_settings,
+            selected_models: selectedModels,
+            scoring_method: scoringMethod,
           }),
         }
       );
+
+      console.log(selectedModels);
 
       if (!response.ok) {
         throw new Error("Failed to save settings");
@@ -161,34 +176,68 @@ export default function AISettings() {
           Model Selection
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Choose which AI models to use for generating responses. Multiple
-          models can be selected.
+          Choose which AI models to use for scoring responses. Multiple models
+          can be selected. If you select multiple ensure you choose a scoring
+          method to combine their scores.
         </Typography>
-        <FormGroup>
-          {availableModels.map((model) => (
-            <FormControlLabel
-              key={model.id}
-              control={
-                <Checkbox
-                  checked={selectedModels.includes(model.id)}
-                  onChange={() => handleModelChange(model.id)}
-                  sx={{
-                    color: "#8B5CF6",
-                    "&.Mui-checked": { color: "#8B5CF6" },
-                  }}
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={8}>
+            <FormGroup>
+              {availableModels.map((model) => (
+                <FormControlLabel
+                  key={model.id}
+                  control={
+                    <Checkbox
+                      checked={selectedModels.includes(model.id)}
+                      onChange={() => {
+                        handleModelChange(model.id);
+                      }}
+                      sx={{
+                        color: "#8B5CF6",
+                        "&.Mui-checked": { color: "#8B5CF6" },
+                      }}
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body1">{model.name}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {model.provider}
+                      </Typography>
+                    </Box>
+                  }
                 />
-              }
-              label={
-                <Box>
-                  <Typography variant="body1">{model.name}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {model.provider}
-                  </Typography>
-                </Box>
-              }
-            />
-          ))}
-        </FormGroup>
+              ))}
+            </FormGroup>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth>
+              <InputLabel id="scoring-method-label">Scoring Method</InputLabel>
+              <Select
+                labelId="scoring-method-label"
+                value={scoringMethod}
+                label="Scoring Method"
+                onChange={(e) => setScoringMethod(e.target.value)}
+                sx={{
+                  width: 150,
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#D1D5DB",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#8B5CF6",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#8B5CF6",
+                  },
+                }}
+              >
+                <MenuItem value="Mean">Mean</MenuItem>
+                <MenuItem value="Median">Median</MenuItem>
+                <MenuItem value="Majority">Majority</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>

@@ -262,14 +262,13 @@ exports.handler = async (event) => {
           throw new Error("Agenda not found or access denied");
         }
 
-        const hyperparameters = await sqlConnection`
-    SELECT hyperparameter_settings FROM research_agenda 
+        const settings = await sqlConnection`
+    SELECT hyperparameter_settings, scoring_models, scoring_method FROM research_agenda 
     WHERE id_research_agenda = ${agenda_id}
   `;
 
         response.body = JSON.stringify({
-          ...accessCheck[0],
-          hyperparameters: hyperparameters,
+          ...settings[0],
         });
         break;
       }
@@ -278,7 +277,8 @@ exports.handler = async (event) => {
         const cognito_id = event.requestContext?.authorizer?.userId;
         const agenda_id = event.pathParameters?.agenda_id;
         const body = JSON.parse(event.body || "{}");
-        const { hyperparameter_settings } = body;
+        const { hyperparameter_settings, selected_models, scoring_method } =
+          body;
 
         if (!cognito_id) {
           throw new Error("Missing user ID");
@@ -312,13 +312,11 @@ exports.handler = async (event) => {
           throw new Error("Agenda not found or access denied");
         }
 
-        if (typeof hyperparameter_settings === "string") {
-          hyperparameter_settings = JSON.parse(hyperparameter_settings);
-        }
-
         await sqlConnection`
           UPDATE research_agenda 
-          SET hyperparameter_settings = ${hyperparameter_settings}
+          SET hyperparameter_settings = ${hyperparameter_settings},
+              scoring_models = ${selected_models},
+              scoring_method = ${scoring_method}
           WHERE id_research_agenda = ${agenda_id}
         `;
 
