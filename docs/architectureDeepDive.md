@@ -44,3 +44,152 @@ AWS CodePipeline and CodeBuild automates Docker image builds and Lambda deployme
 | `time_account_created`      | Timestamp of account creation       |
 | `roles`        | Array of user roles (e.g. member, researcher, admin)         |
 | `last_sign_in`      | Timestamp of last sign-in        |
+
+### `research_agenda` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_research_agenda` | UUID, primary key                          |
+| `user_id`        | Foreign key to users table                     |
+| `agenda_name`    | Name of the research agenda                    |
+| `metric_name`    | Name of the metric being measured              |
+| `metric_description` | Description of the metric                  |
+| `num_uploaded_responses` | Count of uploaded research observations |
+| `num_uploaded_context_documents` | Count of uploaded context documents |
+| `status`         | Status (active, archived)                      |
+| `created_at`     | Timestamp of creation                          |
+| `updated_at`     | Timestamp of last update                       |
+
+### `research_agenda_prompts` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_research_agenda_prompt` | UUID, primary key               |
+| `research_agenda_id` | Foreign key to research_agenda table      |
+| `prompt_type`    | Type of prompt (self_aggregation, general_rag, scoring) |
+| `prompt_text`    | The actual prompt text                         |
+| `is_default`     | Whether this is the default prompt             |
+| `created_at`     | Timestamp of creation                          |
+| `updated_at`     | Timestamp of last update                       |
+
+### `agenda_collaborators` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_agenda_collaborator` | UUID, primary key                  |
+| `research_agenda_id` | Foreign key to research_agenda table      |
+| `user_id`        | Foreign key to users table                     |
+| `added_at`       | Timestamp when collaborator was added          |
+| `added_by`       | Foreign key to users table (who added them)   |
+
+### `research_observations` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_research_observations` | UUID, primary key               |
+| `research_agenda_id` | Foreign key to research_agenda table      |
+| `document_name`  | Name of the uploaded document                  |
+| `file_path`      | S3 path to the document                        |
+| `upload_status`  | Status (uploaded, processing, failed, skipped) |
+| `created_at`     | Timestamp of creation                          |
+| `updated_at`     | Timestamp of last update                       |
+| `metric_score`   | Calculated metric score                        |
+
+### `context_documents` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_context_doc` | UUID, primary key                              |
+| `research_agenda_id` | Foreign key to research_agenda table      |
+| `document_name`  | Name of the context document                   |
+| `file_path`      | S3 path to the document                        |
+| `upload_status`  | Status (uploaded, processing, failed, skipped) |
+| `description`    | Optional description of the document           |
+| `created_at`     | Timestamp of creation                          |
+| `updated_at`     | Timestamp of last update                       |
+
+### `chat_sessions` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_chat_session` | UUID, primary key                             |
+| `research_agenda_id` | Foreign key to research_agenda table      |
+| `user_id`        | Foreign key to users table                     |
+| `session_name`   | Name of the chat session                       |
+| `created_at`     | Timestamp of creation                          |
+| `updated_at`     | Timestamp of last update                       |
+
+### `user_interactions` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_user_interaction` | UUID, primary key                        |
+| `user_id`        | Foreign key to users table                     |
+| `research_agenda_id` | Foreign key to research_agenda table      |
+| `chat_session_id` | Foreign key to chat_sessions table            |
+| `query_text`     | User's question/query                          |
+| `prompt`         | Generated prompt sent to LLM                   |
+| `response_text`  | LLM response                                   |
+| `timestamp`      | Timestamp of interaction                       |
+| `model_used`     | Name of the LLM model used                     |
+| `temperature`    | Temperature parameter used                     |
+| `top_k`          | Top-k parameter used                           |
+
+### `observation_embeddings` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_observation_embeddings` | UUID, primary key               |
+| `observation_id` | Foreign key to research_observations table     |
+| `embedding`      | Vector embedding of the observation            |
+| `metadata`       | JSON metadata about the embedding              |
+| `model_name`     | Name of the embedding model used               |
+| `created_at`     | Timestamp of creation                          |
+
+### `context_document_embeddings` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_context_document_embeddings` | UUID, primary key         |
+| `context_document_id` | Foreign key to context_documents table   |
+| `embedding`      | Vector embedding of the document               |
+| `metadata`       | JSON metadata about the embedding              |
+| `model_name`     | Name of the embedding model used               |
+| `created_at`     | Timestamp of creation                          |
+
+### `user_interaction_observations` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_user_interaction_observations` | UUID, primary key       |
+| `user_interaction_id` | Foreign key to user_interactions table   |
+| `observation_id` | Foreign key to observation_embeddings table    |
+
+### `user_interaction_context_docs` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_user_interaction_context_docs` | UUID, primary key       |
+| `user_interaction_id` | Foreign key to user_interactions table   |
+| `context_document_id` | Foreign key to context_document_embeddings table |
+
+### `rag_prompt_history` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_rag_prompt`  | UUID, primary key                              |
+| `user_interaction_id` | Foreign key to user_interactions table   |
+| `prompt`         | The RAG prompt used                            |
+| `created_at`     | Timestamp of creation                          |
+
+### `rag_interaction_history` table
+
+| Column Name      | Description                                    |
+| ---------------- | ------------------------------------------     |
+| `id_rag_interaction_history` | UUID, primary key             |
+| `user_interaction_id` | Foreign key to user_interactions table   |
+| `query_text`     | User's query                                   |
+| `response_text`  | System response                                |
+| `used_observation_ids` | IDs of observations used in response     |
+| `used_context_document_ids` | IDs of context documents used in response |
+| `timestamp`      | Timestamp of interaction                       |
