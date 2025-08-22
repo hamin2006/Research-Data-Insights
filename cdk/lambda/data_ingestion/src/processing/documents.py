@@ -210,7 +210,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
         """
     body = {
         "prompt": prompt,
-        "max_gen_length": 4096,
+        "max_gen_len": 4096,
         "temperature": 0.0
     }
 
