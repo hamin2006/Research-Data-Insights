@@ -2,6 +2,7 @@ import os
 import json
 import boto3
 import psycopg2
+from psycopg2._psycopg import connection as PgConnection
 import logging
 
 from helpers.vectorstore import update_vectorstore
@@ -50,7 +51,7 @@ def get_parameter():
             raise
     return EMBEDDING_MODEL_ID
 
-def connect_to_db():
+def connect_to_db() -> PgConnection:
     global connection
     if connection is None or connection.closed:
         try:
@@ -170,6 +171,8 @@ def update_vectorstore_from_s3(bucket, agenda_id, document_type, file_name, doc_
             file_name=file_name,
             doc_name=doc_name,
             doc_description=doc_description,
+            doc_id=doc_id,
+            db_connection=connect_to_db(),
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )

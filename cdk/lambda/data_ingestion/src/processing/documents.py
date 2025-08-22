@@ -4,6 +4,7 @@ import tempfile
 import logging
 import uuid
 import json
+import re
 from io import BytesIO
 from typing import List, Dict, Any
 import boto3
@@ -11,6 +12,7 @@ from PyPDF2 import PdfReader
 import docx
 from urllib.request import urlopen
 import pandas as pd
+from psycopg2._psycopg import connection as PgConnection
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 from langchain_aws import BedrockEmbeddings
@@ -180,6 +182,83 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
 
     return output_keys
 
+def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: PgConnection) -> List[str]:
+    """
+    Parse the responses from the document text and store them in the database.
+
+    Args:
+        doc_text (str): The text of the document.
+        doc_id (str): The UUID of the research observation document.
+        agenda_id (str): The UUID of the research agenda.
+        db_connection (PgConnection): The PostgreSQL database connection object.
+
+    Returns:
+        List[str]: A list of parsed responses.
+    """
+    bedrock = boto3.client("bedrock-runtime", region_name=REGION)
+
+    prompt = f"""
+        You are given raw survey text from multiple students.
+        Each student's response may be separated by headers, numbering, or line breaks.
+        Split this text into a JSON list where each item is a separate student's full response.
+
+        Text:
+        {doc_text}
+
+        Return only the JSON list
+        """
+    body = {
+        "prompt": prompt,
+        "max_gen_length": 4096,
+        "temperature": 0.0
+    }
+
+    res = bedrock.invoke_model(
+        modelId="meta.llama3-70b-instruct-v1:0",
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body)
+    )
+    model_output = json.loads(res["body"].read())
+    json_text = model_output.get("generation", "")
+    match = re.search(r'(\[.*\])', json_text, re.DOTALL)
+
+    if not match:
+        logger.warning("Error: Could not find JSON array in the model output.")
+        return []
+
+    try:
+        responses = json.loads(match.group(1))
+        
+        # Store individual responses in the database
+        cursor = db_connection.cursor()
+        for i, response_text in enumerate(responses):
+            if response_text.strip():  # Only store non-empty responses
+                cursor.execute("""
+                    INSERT INTO individual_responses 
+                    (observation_id, research_agenda_id, response_text, response_order, metadata)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    doc_id,
+                    agenda_id, 
+                    response_text,
+                    i + 1,
+                    json.dumps({"source": "ai_parsed", "model": "meta.llama3-70b-instruct-v1:0"})
+                ))
+        
+        db_connection.commit()
+        logger.info(f"Stored {len(responses)} individual responses for observation {doc_id}")
+        return responses
+        
+    except json.JSONDecodeError as e:
+        logger.warning(f"JSON decoding failed: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Error storing individual responses: {e}")
+        db_connection.rollback()
+        return []
+    
+
 def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str, output_bucket: str) -> List[str]:
     """
     Store the text of each page of a document in an S3 bucket.
@@ -212,18 +291,24 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
 
     return output_keys
 
-def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
+def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_name: str, doc_description: str, agenda: str, doc_id: str, db_connection: PgConnection, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
     """
     Store chunks of documents in the vectorstore.
     
     Args:
-    bucket (str): The name of the S3 bucket containing the text files.
-    filenames (List[str]): A list of keys for the text files in the bucket.
-    vectorstore (PGVector): The vectorstore instance.
-    embeddings (BedrockEmbeddings): The embeddings instance.
+        bucket (str): The name of the S3 bucket containing the text files.
+        filenames (List[str]): A list of keys for the text files in the bucket.
+        document_type (str): The type of document ("context_documents" or "observation_documents").
+        doc_name (str): The display name of the document.
+        doc_description (str): The description of the document.
+        agenda (str): The agenda ID.
+        doc_id (str): The unique identifier for the document.
+        db_connection (PgConnection): The PostgreSQL database connection object.
+        vectorstore (PGVector): The vectorstore instance.
+        embeddings (BedrockEmbeddings): The embeddings instance.
     
     Returns:
-    List[Document]: A list of all document chunks for this document that were added to the vectorstore.
+        List[Document]: A list of all document chunks for this document that were added to the vectorstore.
     """
     text_splitter = SemanticChunker(embeddings)
     this_doc_chunks = []
@@ -233,9 +318,12 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         output_buffer = BytesIO()
         s3.download_fileobj(bucket, filename, output_buffer)
         output_buffer.seek(0)
-        doc_texts = output_buffer.read().decode('utf-8')
+        doc_text = output_buffer.read().decode('utf-8')
+
+        if document_type == "observation_documents":
+            parse_responses(doc_text=doc_text, doc_id=doc_id, agenda_id=agenda, db_connection=db_connection)
         
-        doc_chunks = text_splitter.create_documents([doc_texts])
+        doc_chunks = text_splitter.create_documents([doc_text])
         
         head, _, tail = filename.partition("_page_")
         section_num = tail.split('.')[0] 
@@ -263,22 +351,25 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
        
     return this_doc_chunks
 
-def add_document(bucket: str, agenda: str, document_type: str, filename: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, output_bucket: str = EMBEDDING_BUCKET_NAME) -> List[Document]:
-    # store_doc_texts, store_doc_chunks
+def add_document(bucket: str, agenda: str, document_type: str, filename: str, doc_name: str, doc_description: str, doc_id: str, db_connection: PgConnection, vectorstore: PGVector, embeddings: BedrockEmbeddings, output_bucket: str = EMBEDDING_BUCKET_NAME) -> List[Document]:
     """
     Add a document to the vectorstore.
     
     Args:
-    bucket (str): The name of the S3 bucket containing the document.
-    agenda (str): The agenda ID folder within the bucket.
-    document_type (str): The document type folder within the agenda (e.g., "context" or "observation").
-    filename (str): The name of the document file.
-    vectorstore (PGVector): The vectorstore instance.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    output_bucket (str, optional): The name of the S3 bucket for storing extracted data. Defaults to 'temp-extracted-data'.
+        bucket (str): The name of the S3 bucket containing the document.
+        agenda (str): The agenda ID folder within the bucket.
+        document_type (str): The document type folder within the agenda ("context_documents" or "observation_documents").
+        filename (str): The name of the document file.
+        doc_name (str): The display name of the document.
+        doc_description (str): The description of the document.
+        doc_id (str): The unique identifier for the document.
+        db_connection (PgConnection): The PostgreSQL database connection object.
+        vectorstore (PGVector): The vectorstore instance.
+        embeddings (BedrockEmbeddings): The embeddings instance.
+        output_bucket (str, optional): The name of the S3 bucket for storing extracted data. Defaults to EMBEDDING_BUCKET_NAME.
     
     Returns:
-    List[Document]: A list of all document chunks for this document that were added to the vectorstore.
+        List[Document]: A list of all document chunks for this document that were added to the vectorstore.
     """
     
     print("output_bucket", output_bucket)
@@ -296,25 +387,31 @@ def add_document(bucket: str, agenda: str, document_type: str, filename: str, do
         document_type=document_type,
         doc_name=doc_name,
         doc_description=doc_description,
+        agenda=agenda,
+        doc_id=doc_id,
+        db_connection=db_connection,
         vectorstore=vectorstore,
         embeddings=embeddings
     )
     
     return this_doc_chunks
 
-def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_name: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, record_manager: SQLRecordManager) -> None:
-    # add_document, index
+def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_name: str, doc_name: str, doc_description: str, doc_id: str, db_connection: PgConnection, vectorstore: PGVector, embeddings: BedrockEmbeddings, record_manager: SQLRecordManager) -> None:
     """
     Process and add text documents from an S3 bucket to the vectorstore.
     
     Args:
-    bucket (str): The name of the S3 bucket containing the text documents.
-    agenda (str): The agenda ID folder in the S3 bucket.
-    document_type (str): The document type folder in the S3 bucket.
-    file_name (str): The name of the file to be processed.
-    vectorstore (PGVector): The vectorstore instance.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
+        bucket (str): The name of the S3 bucket containing the text documents.
+        agenda (str): The agenda ID folder in the S3 bucket.
+        document_type (str): The document type folder in the S3 bucket ("context_documents" or "observation_documents").
+        file_name (str): The name of the file to be processed.
+        doc_name (str): The display name of the document.
+        doc_description (str): The description of the document.
+        doc_id (str): The unique identifier for the document.
+        db_connection (PgConnection): The PostgreSQL database connection object.
+        vectorstore (PGVector): The vectorstore instance.
+        embeddings (BedrockEmbeddings): The embeddings instance.
+        record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
     """
     paginator = s3.get_paginator('list_objects_v2')
     page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"agendas/{agenda}/{document_type}/{file_name}")
@@ -333,6 +430,8 @@ def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_
                     filename=filename,
                     doc_name=doc_name,
                     doc_description=doc_description,
+                    doc_id=doc_id,
+                    db_connection=db_connection,
                     vectorstore=vectorstore,
                     embeddings=embeddings
                 )

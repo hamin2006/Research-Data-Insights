@@ -3,6 +3,7 @@ import logging
 import boto3
 from typing import Dict, Optional, Tuple
 import psycopg2
+from psycopg2._psycopg import connection as PgConnection
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain.indexes import SQLRecordManager
@@ -55,6 +56,8 @@ def store_agenda_data(
     file_name: str,
     doc_name: str,
     doc_description: str,
+    doc_id: str,
+    db_connection: PgConnection,
     vectorstore_config_dict: Dict[str, str], 
     embeddings: BedrockEmbeddings
 ) -> None:
@@ -62,11 +65,16 @@ def store_agenda_data(
     Store agenda documents from an S3 bucket into the vectorstore.
     
     Args:
-    bucket (str): The name of the S3 bucket.
-    agenda_id (str): The research agenda ID.
-    document_type (str): The document type ("context" or "observation").
-    vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
-    embeddings (BedrockEmbeddings): The embeddings instance.
+        bucket (str): The name of the S3 bucket.
+        agenda_id (str): The research agenda ID.
+        document_type (str): The document type ("context_documents" or "observation_documents").
+        file_name (str): The name of the file to be processed.
+        doc_name (str): The display name of the document.
+        doc_description (str): The description of the document.
+        doc_id (str): The unique identifier for the document.
+        db_connection (PgConnection): The PostgreSQL database connection object.
+        vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
+        embeddings (BedrockEmbeddings): The embeddings instance for processing documents.
     """
     vectorstore, connection_string = get_vectorstore(
         collection_name=vectorstore_config_dict['collection_name'],
@@ -98,6 +106,8 @@ def store_agenda_data(
         file_name=file_name,
         doc_name=doc_name,
         doc_description=doc_description,
+        doc_id=doc_id,
+        db_connection=db_connection,
         vectorstore=vectorstore,
         embeddings=embeddings,
         record_manager=record_manager
