@@ -146,7 +146,7 @@ export class VpcStack extends Stack {
       const natGatewayProvider = ec2.NatProvider.gateway();
 
       // VPC for application
-      this.vpc = new ec2.Vpc(this, "lat-Vpc", {
+      this.vpc = new ec2.Vpc(this, "rdi-Vpc", {
         ipAddresses: ec2.IpAddresses.cidr(this.vpcCidrString),
         natGatewayProvider: natGatewayProvider,
         natGateways: 1,
@@ -167,7 +167,7 @@ export class VpcStack extends Stack {
         ],
       });
 
-      this.vpc.addFlowLog("lat-vpcFlowLog");
+      this.vpc.addFlowLog("rdi-vpcFlowLog");
 
       // Add secrets manager endpoint to VPC
       this.vpc.addInterfaceEndpoint(`${id}-Secrets Manager Endpoint`, {
