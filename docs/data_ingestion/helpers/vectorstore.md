@@ -11,37 +11,20 @@
 
 This script provides utility functions to update a vector store with new embeddings from research agenda documents stored in an S3 bucket.
 
+**Source Code**: [vectorstore.py](../../../cdk/lambda/data_ingestion/src/helpers/vectorstore.py)
+
 ### Import Libraries <a name="import-libraries"></a>
 
 - **typing.Dict**: Used for typing hints to define dictionaries.
+- **langchain_aws.BedrockEmbeddings**: For handling document embeddings.
+- **psycopg2.\_psycopg.connection.PgConnection**: For PostgreSQL database connection type safety.
 - **store_agenda_data**: Helper functions for storing research agenda data in a vector store.
 
 ## Detailed Function Descriptions <a name="detailed-function-descriptions"></a>
 
 ### Function: `update_vectorstore` <a name="update_vectorstore"></a>
 
-```python
-def update_vectorstore(
-    bucket: str,
-    agenda_id: str,
-    document_type: str,  # "context" or "observation"
-    file_name: str,
-    doc_name: str,
-    doc_description: str,
-    vectorstore_config_dict: Dict[str, str],
-    embeddings  # BedrockEmbeddings
-) -> None:
-    store_agenda_data(
-        bucket=bucket,
-        agenda_id=agenda_id,
-        document_type=document_type,
-        file_name=file_name,
-        doc_name=doc_name,
-        doc_description=doc_description,
-        vectorstore_config_dict=vectorstore_config_dict,
-        embeddings=embeddings
-    )
-```
+**Source**: [vectorstore.py lines 5-30](../../../cdk/lambda/data_ingestion/src/helpers/vectorstore.py)
 
 #### Purpose
 
@@ -57,10 +40,12 @@ Updates the vector store with embeddings for research agenda documents in the sp
 - **Inputs**:
   - `bucket`: Name of the S3 bucket containing the agenda data.
   - `agenda_id`: The ID of the research agenda.
-  - `document_type`: The type of documents ("context" or "observation").
+  - `document_type`: The type of documents ("context_documents" or "observation_documents").
   - `file_name`: The name of the specific file to process.
   - `doc_name`: The display name for the document.
   - `doc_description`: A description of the document's content.
+  - `doc_id`: The unique identifier for the document.
+  - `db_connection`: The PostgreSQL database connection object.
   - `vectorstore_config_dict`: Configuration dictionary for the vector store containing parameters like database credentials and collection name.
   - `embeddings`: Embeddings instance used to process the documents (e.g., `BedrockEmbeddings`).
 - **Outputs**:

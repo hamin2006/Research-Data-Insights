@@ -204,8 +204,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
         You are given raw survey text from multiple students.
         Each student's response may be separated by headers, numbering, or line breaks.
         Split this text into a JSON list of string responses (not objects) where each item is a separate student's full response.
-        Be careful as the text may contain no responses (only questions or prompts), return an empty list in this case.
-
+        Return an empty list '[]' if you detect no responses
         Text:
         {doc_text}
 

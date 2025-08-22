@@ -14,6 +14,7 @@
   - [Function: `process_docx`](#process_docx)
   - [Function: `process_csv`](#process_csv)
   - [Function: `process_mp3`](#process_mp3)
+  - [Function: `parse_responses`](#parse_responses)
   - [Function: `store_doc_texts`](#store_doc_texts)
   - [Function: `store_doc_chunks`](#store_doc_chunks)
   - [Function: `add_document`](#add_document)
@@ -23,6 +24,8 @@
 
 This script automates the process of extracting text from research agenda documents stored in an AWS S3 bucket, chunking the text semantically, and storing the processed chunks in a vector store with rich metadata. It supports multiple file formats including PDF, DOCX, CSV, and MP3 (with transcription), and integrates with AWS S3, PGVector for vectorized document storage, and semantic chunking using LangChain's text splitting methods.
 
+**Source Code**: [documents.py](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
+
 ### Import Libraries <a name="import-libraries"></a>
 
 - **os, tempfile**: For creating and handling temporary files.
@@ -30,11 +33,12 @@ This script automates the process of extracting text from research agenda docume
 - **uuid**: For generating unique identifiers for documents and chunks.
 - **time, json**: For handling timestamps and JSON data processing.
 - **BytesIO**: To handle in-memory byte buffers.
-- **boto3**: AWS SDK for Python, for interacting with S3 and Transcribe services.
+- **boto3**: AWS SDK for Python, for interacting with S3, Transcribe, and Bedrock services.
 - **PyPDF2**: For reading PDF files.
 - **docx**: For processing DOCX files.
 - **pandas**: For handling CSV data processing.
 - **urllib.request**: For downloading transcription results.
+- **psycopg2.\_psycopg.connection.PgConnection**: For PostgreSQL database connection type safety.
 - **langchain_postgres.PGVector**: Vector store for document storage.
 - **langchain_core.documents.Document**: Data structure for document objects.
 - **langchain_aws.BedrockEmbeddings**: Handles the embedding process for text data. This project uses the Amazon Titan Text Embeddings V2 model to generate embeddings.
@@ -49,10 +53,11 @@ This script automates the process of extracting text from research agenda docume
 ### Helper Functions <a name="helper-functions"></a>
 
 - **format_diarized_transcript**: Formats transcribed audio with speaker labels for readability.
-- **process_pdf**: Extracts text from PDF files page by page.
+- **process_pdf**: Extracts text from PDF files page by page with improved formatting.
 - **process_docx**: Extracts text from DOCX files paragraph by paragraph.
 - **process_csv**: Processes CSV files in chunks with column formatting.
-- **process_mp3**: Transcribes MP3 audio files using AWS Transcribe with speaker diarization.
+- **process_mp3**: Transcribes MP3 audio files using AWS Transcribe with speaker diarization and PII redaction.
+- **parse_responses**: NEW - Uses AI to parse individual responses from observation documents.
 - **store_doc_texts**: Orchestrates text extraction based on file type and stores results in S3.
 
 ### Main Functions <a name="main-functions"></a>
@@ -63,49 +68,13 @@ This script automates the process of extracting text from research agenda docume
 
 ### Execution Flow <a name="execution-flow"></a>
 
-The script first sets up AWS credentials using `boto3` and initializes various helper functions to download, extract, and process text from research agenda documents in the S3 bucket. It supports multiple file formats and automatically handles text extraction, transcription for audio files, and semantic chunking. The processed chunks are stored in a vector store with rich metadata including document names, descriptions, types, and source information for efficient retrieval and embedding-based search capabilities.
+The script first sets up AWS credentials using `boto3` and initializes various helper functions to download, extract, and process text from research agenda documents in the S3 bucket. It supports multiple file formats and automatically handles text extraction, transcription for audio files, AI-powered response parsing for observation documents, and semantic chunking. The processed chunks are stored in a vector store with rich metadata including document names, descriptions, types, and source information for efficient retrieval and embedding-based search capabilities.
 
 ## Detailed Function Descriptions <a name="detailed-function-descriptions"></a>
 
 ### Function: `format_diarized_transcript` <a name="format_diarized_transcript"></a>
 
-```python
-def format_diarized_transcript(data):
-    speaker_segments = data["results"]["speaker_labels"]["segments"]
-    items = data["results"]["items"]
-
-    # Map each speaker_label (e.g., spk_0) to Speaker 1, Speaker 2, etc.
-    speaker_map = {}
-    speaker_counter = 1
-    for segment in speaker_segments:
-        label = segment["speaker_label"]
-        if label not in speaker_map:
-            speaker_map[label] = f"Speaker {speaker_counter}"
-            speaker_counter += 1
-
-    output = []
-    segment_index = 0
-    segment = speaker_segments[segment_index]
-    speaker = segment["speaker_label"]
-    current_line = f"{speaker_map[speaker]}: "
-
-    for item in items:
-        if item["type"] == "punctuation":
-            current_line = current_line.rstrip() + item["alternatives"][0]["content"] + " "
-        else:
-            while (segment_index + 1 < len(speaker_segments) and
-                   float(item["start_time"]) >= float(speaker_segments[segment_index + 1]["start_time"])):
-                output.append(current_line.strip())
-                segment_index += 1
-                segment = speaker_segments[segment_index]
-                speaker = segment["speaker_label"]
-                current_line = f"{speaker_map[speaker]}: "
-
-            current_line += item["alternatives"][0]["content"] + " "
-
-    output.append(current_line.strip())
-    return "\n\n".join(output)
-```
+**Source**: [documents.py lines 26-58](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -126,20 +95,7 @@ Formats AWS Transcribe output with speaker diarization into a readable transcrip
 
 ### Function: `process_pdf` <a name="process_pdf"></a>
 
-```python
-def process_pdf(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
-    """Process PDF file and store text of each page in S3."""
-    output_keys = []
-    with open(tmp_file_path, 'rb') as file:
-        reader = PdfReader(file)
-        for page_num, page in enumerate(reader.pages, start=1):
-            text = page.extract_text().encode("utf8")
-            page_output_key = f'{filename}_page_{page_num}.txt'
-            output_keys.append(page_output_key)
-            with BytesIO(text) as page_output_buffer:
-                s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
-    return output_keys
-```
+**Source**: [documents.py lines 60-75](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -162,21 +118,7 @@ Extracts text from PDF files page by page and stores each page as a separate tex
 
 ### Function: `process_docx` <a name="process_docx"></a>
 
-```python
-def process_docx(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
-    """Process DOCX file and store text of each paragraph in S3."""
-    output_keys = []
-    doc = docx.Document(tmp_file_path)
-    for page_num, para in enumerate(doc.paragraphs, start=1):
-        if not para.text.strip():  # Skip empty paragraphs
-            continue
-        text = para.text.encode("utf8")
-        page_output_key = f'{filename}_page_{page_num}.txt'
-        output_keys.append(page_output_key)
-        with BytesIO(text) as page_output_buffer:
-            s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
-    return output_keys
-```
+**Source**: [documents.py lines 77-89](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -199,40 +141,7 @@ Extracts text from DOCX files paragraph by paragraph and stores each non-empty p
 
 ### Function: `process_csv` <a name="process_csv"></a>
 
-```python
-def process_csv(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
-    """Process CSV file in chunks and store formatted text in S3."""
-    output_keys = []
-    df = pd.read_csv(tmp_file_path, skiprows=[1])
-
-    # Detect and remove common prefix
-    common_prefix = os.path.commonprefix(df.columns.tolist())
-    clean_columns = [col.replace(common_prefix, '').strip(": ") for col in df.columns]
-    df.columns = clean_columns
-
-    # Process in chunks of 100 rows
-    chunk_size = 100
-    for chunk_num, chunk_start in enumerate(range(0, len(df), chunk_size), start=1):
-        chunk_df = df.iloc[chunk_start:chunk_start + chunk_size]
-
-        text_entries = []
-        for _, row in chunk_df.iterrows():
-            entry = []
-            for col in chunk_df.columns:
-                val = str(row[col]).strip()
-                if val and val.lower() != 'nan':
-                    entry.append(f"{col}:\n{val}")
-            text_entries.append("\n\n".join(entry))
-
-        page_text = "\n\n---\n\n".join(text_entries).encode("utf8")
-        page_output_key = f'{filename}_page_{chunk_num}.txt'
-        output_keys.append(page_output_key)
-
-        with BytesIO(page_text) as page_output_buffer:
-            s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
-
-    return output_keys
-```
+**Source**: [documents.py lines 91-122](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -257,13 +166,7 @@ Processes CSV files by cleaning column names, chunking data into manageable size
 
 ### Function: `process_mp3` <a name="process_mp3"></a>
 
-```python
-def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
-    """Process MP3 file and transcribe audio to text using Transcribe."""
-    # Implementation details include AWS Transcribe job creation,
-    # speaker diarization, PII redaction, and transcript formatting
-    return output_keys
-```
+**Source**: [documents.py lines 124-170](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -286,24 +189,35 @@ Transcribes MP3 audio files to text using AWS Transcribe with speaker diarizatio
 - **Outputs**:
   - Returns a list containing the S3 key for the transcript file.
 
+### Function: `parse_responses` <a name="parse_responses"></a>
+
+**Source**: [documents.py lines 172-230](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
+
+#### Purpose
+
+Parses individual responses from observation documents using AI-powered text analysis and stores them in the database.
+
+#### Process Flow
+
+1. **AI Analysis**: Uses AWS Bedrock with Meta Llama 3 70B Instruct model to analyze document text.
+2. **Response Extraction**: Extracts individual student responses from survey or observation text.
+3. **JSON Parsing**: Safely parses the AI-generated JSON response list.
+4. **Database Storage**: Stores each individual response in the individual_responses table.
+5. **Error Handling**: Comprehensive error handling for JSON parsing and database operations.
+
+#### Inputs and Outputs
+
+- **Inputs**:
+  - `doc_text`: The text content of the document to parse.
+  - `doc_id`: The unique identifier for the research observation document.
+  - `agenda_id`: The unique identifier for the research agenda.
+  - `db_connection`: The PostgreSQL database connection object.
+- **Outputs**:
+  - Returns a list of parsed individual responses.
+
 ### Function: `store_doc_texts` <a name="store_doc_texts"></a>
 
-```python
-def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str, output_bucket: str) -> List[str]:
-    """
-    Store the text of each page of a document in an S3 bucket.
-
-    Args:
-    bucket (str): The name of the S3 bucket containing the document.
-    agenda (str): The agenda ID folder within the bucket.
-    document_type (str): The document type folder within the agenda (e.g., "context" or "observation").
-    filename (str): The name of the document file.
-    output_bucket (str): The name of the S3 bucket for storing the extracted text.
-
-    Returns:
-    List[str]: A list of keys for the stored text files in the output bucket.
-    """
-```
+**Source**: [documents.py lines 233-263](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -321,7 +235,7 @@ Orchestrates text extraction from various file formats and stores the results in
 - **Inputs**:
   - `bucket`: S3 bucket containing the source document.
   - `agenda`: Research agenda ID (currently not used in file path).
-  - `document_type`: Type of document (context or observation).
+  - `document_type`: Type of document (context_documents or observation_documents).
   - `filename`: Name of the document file to process.
   - `output_bucket`: S3 bucket for storing extracted text files.
 - **Outputs**:
@@ -329,12 +243,7 @@ Orchestrates text extraction from various file formats and stores the results in
 
 ### Function: `store_doc_chunks` <a name="store_doc_chunks"></a>
 
-```python
-def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings) -> List[Document]:
-    """
-    Store chunks of documents in the vectorstore.
-    """
-```
+**Source**: [documents.py lines 265-321](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -353,9 +262,12 @@ Creates semantic chunks from extracted text and stores them in the vector store 
 - **Inputs**:
   - `bucket`: S3 bucket containing text files.
   - `filenames`: List of text file keys to process.
-  - `document_type`: Type of document (context or observation).
+  - `document_type`: Type of document (context_documents or observation_documents).
   - `doc_name`: Display name for the document.
   - `doc_description`: Description of the document content.
+  - `agenda`: The agenda ID.
+  - `doc_id`: The unique identifier for the document.
+  - `db_connection`: The PostgreSQL database connection object.
   - `vectorstore`: PGVector instance for storing chunks.
   - `embeddings`: BedrockEmbeddings instance for creating embeddings.
 - **Outputs**:
@@ -363,12 +275,7 @@ Creates semantic chunks from extracted text and stores them in the vector store 
 
 ### Function: `add_document` <a name="add_document"></a>
 
-```python
-def add_document(bucket: str, agenda: str, document_type: str, filename: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, output_bucket: str = EMBEDDING_BUCKET_NAME) -> List[Document]:
-    """
-    Add a document to the vectorstore.
-    """
-```
+**Source**: [documents.py lines 323-362](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -385,10 +292,12 @@ Handles the complete workflow for processing and adding a document to the vector
 - **Inputs**:
   - `bucket`: S3 bucket containing the source document.
   - `agenda`: Research agenda ID.
-  - `document_type`: Type of document (context or observation).
+  - `document_type`: Type of document (context_documents or observation_documents).
   - `filename`: Name of the document file.
   - `doc_name`: Display name for the document.
   - `doc_description`: Description of the document content.
+  - `doc_id`: The unique identifier for the document.
+  - `db_connection`: The PostgreSQL database connection object.
   - `vectorstore`: PGVector instance for storing chunks.
   - `embeddings`: BedrockEmbeddings instance.
   - `output_bucket`: S3 bucket for temporary text storage.
@@ -397,12 +306,7 @@ Handles the complete workflow for processing and adding a document to the vector
 
 ### Function: `process_agenda_documents` <a name="process_agenda_documents"></a>
 
-```python
-def process_agenda_documents(bucket: str, agenda: str, document_type: str, file_name: str, doc_name: str, doc_description: str, vectorstore: PGVector, embeddings: BedrockEmbeddings, record_manager: SQLRecordManager) -> None:
-    """
-    Process and add text documents from an S3 bucket to the vectorstore.
-    """
-```
+**Source**: [documents.py lines 364-410](../../../cdk/lambda/data_ingestion/src/processing/documents.py)
 
 #### Purpose
 
@@ -421,10 +325,12 @@ Processes documents for a specific research agenda and document type, managing t
 - **Inputs**:
   - `bucket`: S3 bucket containing agenda documents.
   - `agenda`: Research agenda ID.
-  - `document_type`: Type of documents to process (context or observation).
+  - `document_type`: Type of documents to process (context_documents or observation_documents).
   - `file_name`: Specific file name to process.
   - `doc_name`: Display name for the document.
   - `doc_description`: Description of the document content.
+  - `doc_id`: The unique identifier for the document.
+  - `db_connection`: The PostgreSQL database connection object.
   - `vectorstore`: PGVector instance for storing chunks.
   - `embeddings`: BedrockEmbeddings instance.
   - `record_manager`: SQLRecordManager for tracking processed documents.

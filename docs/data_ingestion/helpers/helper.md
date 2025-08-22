@@ -16,11 +16,13 @@
 
 This script is designed to interact with an AWS S3 bucket, process research agenda documents, and store the extracted data into a PostgreSQL-based vector store using LangChain. The script supports embedding documents, chunking them, and managing metadata in the vector store for research data insights.
 
+**Source Code**: [helper.py](../../../cdk/lambda/data_ingestion/src/helpers/helper.py)
+
 ### Import Libraries <a name="import-libraries"></a>
 
 - **logging**: Used for logging script actions and errors.
 - **boto3**: AWS SDK for interacting with S3.
-- **psycopg2**: For interacting with PostgreSQL databases.
+- **psycopg2**: For interacting with PostgreSQL databases with enhanced type safety using `PgConnection`.
 - **BedrockEmbeddings**: LangChain AWS embeddings instance for handling document embeddings. This project uses the Amazon Titan Text Embeddings V2 model to generate embeddings.
 - **PGVector**: PostgreSQL-based vector store for storing and retrieving vectorized documents.
 - **SQLRecordManager**: For managing the document records in the database.
@@ -42,43 +44,14 @@ This script is designed to interact with an AWS S3 bucket, process research agen
 
 1. **AWS S3**: The script fetches documents from an S3 bucket organized by research agenda.
 2. **PostgreSQL Connection**: A PGVector instance is created and connected to the PostgreSQL database.
-3. **Document Processing**: Research agenda documents (context or observation types) are processed, chunked, and embedded.
+3. **Document Processing**: Research agenda documents (context_documents or observation_documents types) are processed, chunked, and embedded.
 4. **Vector Store**: The processed chunks are stored in the vector store with metadata for retrieval and search.
 
 ## Detailed Function Descriptions <a name="detailed-function-descriptions"></a>
 
 ### Function: `get_vectorstore` <a name="get_vectorstore"></a>
 
-```python
-def get_vectorstore(
-    collection_name: str,
-    embeddings: BedrockEmbeddings,
-    dbname: str,
-    user: str,
-    password: str,
-    host: str,
-    port: int
-) -> Optional[Tuple[PGVector, str]]:
-    try:
-        connection_string = (
-            f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
-        )
-
-        logger.info("Initializing the VectorStore")
-        vectorstore = PGVector(
-            embeddings=embeddings,
-            collection_name=collection_name,
-            connection=connection_string,
-            use_jsonb=True
-        )
-
-        logger.info("VectorStore initialized")
-        return vectorstore, connection_string
-
-    except Exception as e:
-        logger.error(f"Error initializing vector store: {e}")
-        return None
-```
+**Source**: [helper.py lines 25-48](../../../cdk/lambda/data_ingestion/src/helpers/helper.py)
 
 #### Purpose
 
@@ -112,52 +85,7 @@ Initializes and returns a `PGVector` instance that connects to a PostgreSQL data
 
 ### Function: `store_agenda_data` <a name="store_agenda_data"></a>
 
-```python
-def store_agenda_data(
-    bucket: str,
-    agenda_id: str,
-    document_type: str,  # "context" or "observation"
-    file_name: str,
-    doc_name: str,
-    doc_description: str,
-    vectorstore_config_dict: Dict[str, str],
-    embeddings: BedrockEmbeddings
-) -> None:
-    vectorstore, connection_string = get_vectorstore(
-        collection_name=vectorstore_config_dict['collection_name'],
-        embeddings=embeddings,
-        dbname=vectorstore_config_dict['dbname'],
-        user=vectorstore_config_dict['user'],
-        password=vectorstore_config_dict['password'],
-        host=vectorstore_config_dict['host'],
-        port=int(vectorstore_config_dict['port'])
-    )
-
-    if vectorstore:
-        # define record manager
-        namespace = f"pgvector/agenda_{agenda_id}_{document_type}"
-        record_manager = SQLRecordManager(
-            namespace, db_url=connection_string
-        )
-        record_manager.create_schema()
-
-    if not vectorstore:
-        logger.error("VectorStore could not be initialized")
-        return
-
-    # Process documents in the agenda folder
-    process_agenda_documents(
-        bucket=bucket,
-        agenda=agenda_id,
-        document_type=document_type,
-        file_name=file_name,
-        doc_name=doc_name,
-        doc_description=doc_description,
-        vectorstore=vectorstore,
-        embeddings=embeddings,
-        record_manager=record_manager
-    )
-```
+**Source**: [helper.py lines 50-95](../../../cdk/lambda/data_ingestion/src/helpers/helper.py)
 
 #### Purpose
 
@@ -182,10 +110,12 @@ Processes research agenda documents from an S3 bucket and stores them into the v
 - **Inputs**:
   - `bucket`: The name of the S3 bucket containing the agenda data.
   - `agenda_id`: The research agenda ID.
-  - `document_type`: The type of documents ("context" or "observation").
+  - `document_type`: The type of documents ("context_documents" or "observation_documents").
   - `file_name`: The name of the specific file to process.
   - `doc_name`: The display name for the document.
   - `doc_description`: A description of the document's content.
+  - `doc_id`: The unique identifier for the document.
+  - `db_connection`: The PostgreSQL database connection object.
   - `vectorstore_config_dict`: A dictionary containing the vector store configuration, including database credentials and collection name.
   - `embeddings`: The BedrockEmbeddings instance used for generating document embeddings.
 - **Outputs**:
