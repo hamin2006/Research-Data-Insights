@@ -1374,6 +1374,16 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["bedrock:InvokeModel"],
+        resources: [
+          `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1:0`,
+        ],
+      })
+    );
+
     // Attach the custom Bedrock policy to Lambda function
     dataIngestionLambdaDockerFunc.addToRolePolicy(bedrockPolicyStatement);
 

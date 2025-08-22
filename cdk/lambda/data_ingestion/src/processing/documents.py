@@ -201,6 +201,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
         You are given raw survey text from multiple students.
         Each student's response may be separated by headers, numbering, or line breaks.
         Split this text into a JSON list where each item is a separate student's full response.
+        Be careful as the text may contain no responses (only questions or prompts), return an empty list in this case.
 
         Text:
         {doc_text}
@@ -209,7 +210,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
         """
     body = {
         "prompt": prompt,
-        "max_gen_length": 4096,
+        "max_gen_len": 4096,
         "temperature": 0.0
     }
 
@@ -251,7 +252,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
         return responses
         
     except json.JSONDecodeError as e:
-        logger.warning(f"JSON decoding failed: {e}")
+        logger.warning(f"JSON decoding failed: {e} \n JSON text: {json_text}")
         return []
     except Exception as e:
         logger.error(f"Error storing individual responses: {e}")
