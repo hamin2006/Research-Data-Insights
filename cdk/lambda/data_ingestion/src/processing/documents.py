@@ -252,7 +252,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
         return responses
         
     except json.JSONDecodeError as e:
-        logger.warning(f"JSON decoding failed: {e}")
+        logger.warning(f"JSON decoding failed: {e} \n JSON text: {json_text}")
         return []
     except Exception as e:
         logger.error(f"Error storing individual responses: {e}")
