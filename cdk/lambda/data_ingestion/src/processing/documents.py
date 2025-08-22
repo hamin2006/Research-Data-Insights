@@ -74,10 +74,13 @@ def process_pdf(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
     with open(tmp_file_path, 'rb') as file:
         reader = PdfReader(file)
         for page_num, page in enumerate(reader.pages, start=1):
-            text = page.extract_text().encode("utf8")
+            text = page.extract_text()
+            text = re.sub(r"\n{2,}", "<PARA>", text)
+            text = text.replace("\n", " ")
+            text = text.replace("<PARA>", "\n\n")
             page_output_key = f'{filename}_page_{page_num}.txt'
             output_keys.append(page_output_key)
-            with BytesIO(text) as page_output_buffer:
+            with BytesIO(text.encode('utf8')) as page_output_buffer:
                 s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
     return output_keys
 
@@ -200,7 +203,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
     prompt = f"""
         You are given raw survey text from multiple students.
         Each student's response may be separated by headers, numbering, or line breaks.
-        Split this text into a JSON list where each item is a separate student's full response.
+        Split this text into a JSON list of string responses (not objects) where each item is a separate student's full response.
         Be careful as the text may contain no responses (only questions or prompts), return an empty list in this case.
 
         Text:
@@ -222,15 +225,27 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
     )
     model_output = json.loads(res["body"].read())
     json_text = model_output.get("generation", "")
-    match = re.search(r'(\[.*\])', json_text, re.DOTALL)
 
-    if not match:
+    start = json_text.find('[')
+    if start == -1:
         logger.warning("Error: Could not find JSON array in the model output.")
-        return []
+    
+    bracket_count = 0
+    end = start
+    
+    for i in range(start, len(json_text)):
+        if json_text[i] == '[':
+            bracket_count += 1
+        elif json_text[i] == ']':
+            bracket_count -= 1
+            if bracket_count == 0:
+                end = i + 1
+                break
+    
+    text = json_text[start:end]
 
     try:
-        responses = json.loads(match.group(1))
-        
+        responses = json.loads(text)
         # Store individual responses in the database
         cursor = db_connection.cursor()
         for i, response_text in enumerate(responses):
