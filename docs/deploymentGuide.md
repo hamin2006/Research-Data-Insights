@@ -289,7 +289,7 @@ The stack prefix will be prefixed onto the physical names of the resources creat
 If you have trouble running the above command, try removing all the \ and run it in one line.
 ```
 cdk deploy --all \
- --parameters <your-stack-prefix>-Amplify:githubRepoName=Legal-Aid-Tool \
+ --parameters <your-stack-prefix>-Amplify:githubRepoName=Research-Data-Insights \
  --context StackPrefix=<your-stack-prefix> \
  --context environment=dev \ 
  --context version=1.2.0 \ 
