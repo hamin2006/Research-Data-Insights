@@ -258,7 +258,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
                     doc_id,
                     agenda_id, 
                     response_text,
-                    i + 1,
+                    i,
                     json.dumps({"source": "ai_parsed", "model": "meta.llama3-70b-instruct-v1:0"})
                 ))
         
