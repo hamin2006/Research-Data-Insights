@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 RDI_DATA_INGESTION_BUCKET = os.environ["BUCKET"]
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 REGION = os.environ["REGION"]
+SCORING_BUCKET = os.environ["SCORING_BUCKET"]
 
 s3 = boto3.client("s3", region_name=REGION)
 transcribe = boto3.client("transcribe", region_name=REGION)
@@ -185,7 +186,7 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
 
     return output_keys
 
-def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: PgConnection) -> List[str]:
+def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str db_connection: PgConnection) -> List[str]:
     """
     Parse the responses from the document text and store them in the database.
 
@@ -251,14 +252,15 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, db_connection: P
             if response_text.strip():  # Only store non-empty responses
                 cursor.execute("""
                     INSERT INTO individual_responses 
-                    (observation_id, research_agenda_id, response_text, response_order, metadata)
-                    VALUES (%s, %s, %s, %s, %s)
+                    (observation_id, research_agenda_id, response_text, response_order, metadata, file_path)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
                     doc_id,
                     agenda_id, 
                     response_text,
                     i,
-                    json.dumps({"source": "ai_parsed", "model": "meta.llama3-70b-instruct-v1:0"})
+                    json.dumps({"source": "ai_parsed", "model": "meta.llama3-70b-instruct-v1:0"}),
+                    file_path
                 ))
         
         db_connection.commit()
@@ -336,7 +338,7 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         doc_text = output_buffer.read().decode('utf-8')
 
         if document_type == "observation_documents":
-            parse_responses(doc_text=doc_text, doc_id=doc_id, agenda_id=agenda, db_connection=db_connection)
+            parse_responses(doc_text=doc_text, doc_id=doc_id, agenda_id=agenda, file_name=filename, db_connection=db_connection)
         
         doc_chunks = text_splitter.create_documents([doc_text])
         

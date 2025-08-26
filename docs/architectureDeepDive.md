@@ -29,7 +29,7 @@ AWS CodePipeline and CodeBuild automates Docker image builds and Lambda deployme
 
 ![Database Diagram](./media/db-diagram.png)
 
-### RDS Tables
+### RDS PostgreSQL Tables
 
 ### `users` table
 
@@ -135,27 +135,6 @@ AWS CodePipeline and CodeBuild automates Docker image builds and Lambda deployme
 | `temperature`    | Temperature parameter used                     |
 | `top_k`          | Top-k parameter used                           |
 
-### `observation_embeddings` table
-
-| Column Name      | Description                                    |
-| ---------------- | ------------------------------------------     |
-| `id_observation_embeddings` | UUID, primary key               |
-| `observation_id` | Foreign key to research_observations table     |
-| `embedding`      | Vector embedding of the observation            |
-| `metadata`       | JSON metadata about the embedding              |
-| `model_name`     | Name of the embedding model used               |
-| `created_at`     | Timestamp of creation                          |
-
-### `context_document_embeddings` table
-
-| Column Name      | Description                                    |
-| ---------------- | ------------------------------------------     |
-| `id_context_document_embeddings` | UUID, primary key         |
-| `context_document_id` | Foreign key to context_documents table   |
-| `embedding`      | Vector embedding of the document               |
-| `metadata`       | JSON metadata about the embedding              |
-| `model_name`     | Name of the embedding model used               |
-| `created_at`     | Timestamp of creation                          |
 
 ### `user_interaction_observations` table
 
@@ -193,3 +172,23 @@ AWS CodePipeline and CodeBuild automates Docker image builds and Lambda deployme
 | `used_observation_ids` | IDs of observations used in response     |
 | `used_context_document_ids` | IDs of context documents used in response |
 | `timestamp`      | Timestamp of interaction                       |
+
+### RDS Langchain Tables
+
+### `langchain_pg_collection` table
+
+| Column Name | Description                    |
+| ----------- | ------------------------------ |
+| `uuid`      | The uuid of the collection     |
+| `name`      | The id of the document         |
+| `cmetadata` | The metadata of the collection |
+
+### `langchain_pg_embedding` table
+
+| Column Name     | Description                           |
+| --------------- | ------------------------------------- |
+| `id`            | The ID of the embeddings              |
+| `collection_id` | The uuid of the collection            |
+| `embedding`     | The vector embeddings of the document |
+| `cmetadata`     | The metadata of the collection        |
+| `document`      | The content of the document           |

@@ -359,6 +359,27 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    const scoringBucket = new s3.Bucket(this, `${id}-scoring-bucket`, {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      cors: [
+        {
+          allowedHeaders: ["*"],
+          allowedMethods: [
+            s3.HttpMethods.GET,
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.HEAD,
+            s3.HttpMethods.POST,
+            s3.HttpMethods.DELETE,
+          ],
+          allowedOrigins: ["*"],
+        },
+      ],
+      // When deleting the stack, the bucket will be deleted as well
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      enforceSSL: true,
+    });
+
     // Create the Lambda function for generating presigned URLs
     const generatePreSignedURL = new lambda.Function(
       this,
@@ -1326,6 +1347,7 @@ export class ApiGatewayStack extends cdk.Stack {
           SM_DB_CREDENTIALS: db.secretPathAdminName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpointAdmin,
           BUCKET: documentsBucket.bucketName,
+          SCORING_BUCKET: scoringBucket.bucketName,
           REGION: this.region,
           EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
@@ -1442,7 +1464,7 @@ export class ApiGatewayStack extends cdk.Stack {
         code: lambda.DockerImageCode.fromEcr(props.ecrRepositories["scoring"], {
           tagOrDigest: "latest",
         }),
-        memorySize: 1024,
+        memorySize: 512,
         timeout: cdk.Duration.seconds(300),
         vpc: vpcStack.vpc,
         functionName: `${id}-ScoringLambdaFunction`,
@@ -1451,8 +1473,7 @@ export class ApiGatewayStack extends cdk.Stack {
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,
           BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
-          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
-          TABLE_NAME_PARAM: tableNameParameter.parameterName,
+          BUCKET: scoringBucket.bucketName
         },
       }
     );
@@ -1469,6 +1490,32 @@ export class ApiGatewayStack extends cdk.Stack {
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/agenda*`,
     });
 
+    scoringBucket.grantRead(scoringLambdaFunction);
+
+    // Add ListBucket permission explicitly
+    scoringLambdaFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [scoringBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    scoringLambdaFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
+        resources: [
+          `arn:aws:s3:::${scoringBucket.bucketName}/*`, // Grant access to all objects within this bucket
+        ],
+      })
+    );
+
     // Bedrock permissions
     const scoringBedrockPolicyStatement = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
@@ -1482,6 +1529,35 @@ export class ApiGatewayStack extends cdk.Stack {
         `arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-text-express-v1`,
       ],
     });
+
+    // Attach the custom Bedrock policy to Lambda function
+    scoringLambdaFunction.addToRolePolicy(scoringBedrockPolicyStatement);
+
+    // Add the S3 event source trigger to the Lambda function
+    scoringLambdaFunction.addEventSource(
+      new lambdaEventSources.S3EventSource(scoringBucket, {
+        events: [
+          s3.EventType.OBJECT_CREATED,
+          s3.EventType.OBJECT_REMOVED,
+          s3.EventType.OBJECT_RESTORE_COMPLETED,
+        ],
+      })
+    );
+
+    // Grant access to Secret Manager
+    scoringLambdaFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          //Secrets Manager
+          "secretsmanager:GetSecretValue",
+        ],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+        ],
+      })
+    );
+
     textGenLambdaDockerFunc.addToRolePolicy(textGenBedrockPolicyStatement);
 
     // Secrets Manager access

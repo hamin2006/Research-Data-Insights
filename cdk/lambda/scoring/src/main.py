@@ -203,7 +203,7 @@ def handler(event, context):
       "items": [{"id": "r1", "text": "..."}],
       "model_ids": ["..."]            # optional override
     }
-    """
+    
     try:
         body = event.get("body") if isinstance(event, dict) and "body" in event else event
         if isinstance(body, str):
@@ -256,3 +256,5 @@ def handler(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"error": str(e)})
         }
+        """
+    return
