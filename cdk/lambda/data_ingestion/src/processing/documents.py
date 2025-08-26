@@ -252,8 +252,8 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str, 
         for i, response_text in enumerate(responses):
             if response_text.strip():  # Only store non-empty responses
                 response_output_key = f'{file_name}_response_{i}.txt'
-                with BytesIO(response_text.encode('utf8')) as page_output_buffer:
-                    s3.upload_fileobj(page_output_buffer, SCORING_BUCKET, response_output_key)
+                with BytesIO(response_text.encode('utf8')) as response_output_buffer:
+                    s3.upload_fileobj(response_output_buffer, SCORING_BUCKET, response_output_key)
 
                 cursor.execute("""
                     INSERT INTO individual_responses 
@@ -343,7 +343,7 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         doc_text = output_buffer.read().decode('utf-8')
 
         if document_type == "observation_documents":
-            parse_responses(doc_text=doc_text, doc_id=doc_id, agenda_id=agenda, file_name=filename, db_connection=db_connection)
+            parse_responses(doc_text=doc_text, doc_id=doc_id, agenda_id=agenda, file_path=filename, db_connection=db_connection)
         
         doc_chunks = text_splitter.create_documents([doc_text])
         
