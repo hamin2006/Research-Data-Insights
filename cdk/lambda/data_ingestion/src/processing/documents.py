@@ -186,7 +186,7 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
 
     return output_keys
 
-def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str db_connection: PgConnection) -> List[str]:
+def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str, db_connection: PgConnection) -> List[str]:
     """
     Parse the responses from the document text and store them in the database.
 
