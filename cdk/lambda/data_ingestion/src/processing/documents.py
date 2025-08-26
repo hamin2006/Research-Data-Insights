@@ -243,6 +243,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str d
                 break
     
     text = json_text[start:end]
+    file_name, file_type = file_path.rsplit('.', 1)
 
     try:
         responses = json.loads(text)
@@ -250,6 +251,10 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str d
         cursor = db_connection.cursor()
         for i, response_text in enumerate(responses):
             if response_text.strip():  # Only store non-empty responses
+                response_output_key = f'{file_name}_response_{i}.txt'
+                with BytesIO(response_text.encode('utf8')) as page_output_buffer:
+                    s3.upload_fileobj(page_output_buffer, SCORING_BUCKET, response_output_key)
+
                 cursor.execute("""
                     INSERT INTO individual_responses 
                     (observation_id, research_agenda_id, response_text, response_order, metadata, file_path)
@@ -260,7 +265,7 @@ def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str d
                     response_text,
                     i,
                     json.dumps({"source": "ai_parsed", "model": "meta.llama3-70b-instruct-v1:0"}),
-                    file_path
+                    response_output_key
                 ))
         
         db_connection.commit()
