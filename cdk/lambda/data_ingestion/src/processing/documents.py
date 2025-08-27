@@ -301,13 +301,13 @@ def store_doc_texts(bucket: str, agenda: str, document_type: str, filename: str,
         file_name, file_type = filename.rsplit('.', 1)
 
         if file_type.lower() == 'pdf':
-            output_keys = process_pdf(tmp_file.name, filename, output_bucket)
+            output_keys = process_pdf(tmp_file.name, file_name, output_bucket)
         elif file_type.lower() == 'docx':
-            output_keys = process_docx(tmp_file.name, filename, output_bucket)
+            output_keys = process_docx(tmp_file.name, file_name, output_bucket)
         elif file_type.lower() == 'csv':
-            output_keys = process_csv(tmp_file.name, filename, output_bucket)
+            output_keys = process_csv(tmp_file.name, file_name, output_bucket)
         elif file_type.lower() == 'mp3':
-            output_keys = process_mp3(tmp_file.name, filename, output_bucket)
+            output_keys = process_mp3(tmp_file.name, file_name, output_bucket)
 
         os.remove(tmp_file.name)
 

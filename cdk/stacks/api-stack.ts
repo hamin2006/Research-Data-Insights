@@ -1399,6 +1399,21 @@ export class ApiGatewayStack extends cdk.Stack {
     dataIngestionLambdaDockerFunc.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
+        resources: [
+          `arn:aws:s3:::${scoringBucket.bucketName}/*`, // Grant access to all objects within this bucket
+        ],
+      })
+    );
+
+    dataIngestionLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
         actions: ["bedrock:InvokeModel"],
         resources: [
           `arn:aws:bedrock:${this.region}::foundation-model/meta.llama3-70b-instruct-v1:0`,
@@ -1473,7 +1488,7 @@ export class ApiGatewayStack extends cdk.Stack {
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,
           BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
-          BUCKET: scoringBucket.bucketName
+          BUCKET: scoringBucket.bucketName,
         },
       }
     );
@@ -1538,7 +1553,6 @@ export class ApiGatewayStack extends cdk.Stack {
       new lambdaEventSources.S3EventSource(scoringBucket, {
         events: [
           s3.EventType.OBJECT_CREATED,
-          s3.EventType.OBJECT_REMOVED,
           s3.EventType.OBJECT_RESTORE_COMPLETED,
         ],
       })

@@ -196,7 +196,7 @@ def handler(event, context):
         bucket_name = record['s3']['bucket']['name']
         print(f"Processing event: {event_name} for bucket: {bucket_name}")
 
-        # Only process files from the AILA_DATA_INGESTION_BUCKET
+        # Only process files from the RDI_DATA_INGESTION_BUCKET
         if bucket_name != RDI_DATA_INGESTION_BUCKET:
             print(f"Ignoring event from non-target bucket: {bucket_name}")
             continue  # Ignore this event and move to the next one
