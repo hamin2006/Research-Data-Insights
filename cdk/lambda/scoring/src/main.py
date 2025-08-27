@@ -197,6 +197,16 @@ def invoke_model(model_id: str, prompt: str) -> str:
 def majority(scores):
     return Counter(scores).most_common(1)[0][0] if scores else None
 
+def mean(scores):
+    return sum(scores) / len(scores) if scores else None
+
+def median(scores):
+    if not scores:
+        return None
+    sorted_scores = sorted(scores)
+    n = len(sorted_scores)
+    return sorted_scores[n // 2] if n % 2 == 1 else (sorted_scores[n // 2 - 1] + sorted_scores[n // 2]) / 2
+
 # -------- Grabbing agenda id, prompt, etc --------
 def parse_s3_file_path(file_key):
     # Assuming the file path is of the format: agendas/{agenda_id}/{document_type}/{original_file_name}_page_{page_num}_response_{response_num}.{file_type == 'txt'} 
@@ -303,6 +313,12 @@ def handler(event, context):
             resp = {
                 "file_key": file_key,
                 "text": text,
+                "metric": metric_name,
+                "metric_description": metric_description,
+                "hyperparameter_settings": hyperparameter_settings,
+                "scoring_models": scoring_models,
+                "scoring_method": scoring_method,
+                "prompt": prompt,
                 "model_scores": per_model_scores,
                 "predicted_score": majority(per_model_scores)
             }
