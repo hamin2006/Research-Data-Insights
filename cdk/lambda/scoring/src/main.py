@@ -243,6 +243,12 @@ def parse_s3_file_path(file_key):
             elif scoring_models is None:
                 scoring_models = []
 
+            if isinstance(hyperparameter_settings, dict):
+                hyperparameter_settings = json.loads(hyperparameter_settings)
+            elif scoring_models is None:
+                hyperparameter_settings = {}
+
+
             return agenda_id, metric_name, metric_description, hyperparameter_settings, scoring_models, scoring_method
 
         except Exception as e:
