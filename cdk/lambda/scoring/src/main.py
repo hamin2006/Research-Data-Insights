@@ -248,9 +248,9 @@ def parse_s3_file_path(file_key):
             elif scoring_models is None:
                 scoring_models = []
 
-            if isinstance(hyperparameter_settings, dict):
+            if isinstance(hyperparameter_settings, str):
                 hyperparameter_settings = json.loads(hyperparameter_settings)
-            elif scoring_models is None:
+            elif hyperparameter_settings is None:
                 hyperparameter_settings = {}
 
 
