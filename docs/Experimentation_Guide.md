@@ -42,13 +42,14 @@ The relevant files pertaining to the development experimentation are in followin
 
 The `LLM_Scoring.ipynb` notebook allows you to test and compare different scoring techniques for LLM outputs. We focus on scoring techniques that leverage several LLMs in an LLM-as-a-judge framework (See \[1\] for an overview). In particular, we leverage 3 different scoring methods for this demonstration. We query multiple LLMs to provide a score for a particular classification task and use either the majority, mean or median score. We also test out generative self-aggregation \[2\] as an optional scoring method.
 
-For this example, we leverage the [Amazon Reviews Dataset](https://www.kaggle.com/datasets/trainingdatapro/amazon-reviews-dataset). We query LLMs to predict user star ratings from the review text. The notebook enables us to load text responses, apply multiple scoring strategies, and compare their effectiveness. 
+For this example, we leverage the [Amazon Reviews Dataset](https://www.kaggle.com/datasets/trainingdatapro/amazon-reviews-dataset). We query LLMs to predict user star ratings from the review text. The notebook enables us to [load the reviews](LLM_Scoring.ipynb#amazon_reviews) with text responses, [apply multiple scoring strategies](LLM_Scoring.ipynb#multi_scores), and [compare their effectiveness](LLM_Scoring.ipynb#compare). 
 
 \[1\] - Gu, Jiawei, et al. "A survey on llm-as-a-judge." arXiv preprint arXiv:2411.15594 (2024). [https://arxiv.org/pdf/2411.15594?](https://arxiv.org/pdf/2411.15594?)
 
 \[2\] - Li, Zichong, et al. "Llms can generate a better answer by aggregating their own responses." arXiv preprint arXiv:2503.04104 (2025). [https://arxiv.org/pdf/2503.04104](https://arxiv.org/pdf/2503.04104)
 
-#### Dataset Fields
+#### [Dataset Fields](LLM_Scoring.ipynb#amazon_reviews_columns)
+
 The dataset contains customer reviews of products from Amazon, with the following key fields:  
 - **user_name**: Identifier or alias of the reviewer.  
 - **stars**: The rating given by the reviewer (1–5 scale).  
@@ -59,6 +60,7 @@ The dataset contains customer reviews of products from Amazon, with the followin
 - **helpful**: Count of how many users marked the review as helpful.  
 
 These fields enable both content-based (review text) and metadata-based (stars, helpfulness, etc.) evaluation strategies.  
+
 
 #### Methodology for Evaluating Scoring Strategies
 Within `LLM_Scoring.ipynb`, we experimented with several approaches for aggregating and evaluating LLM-based scoring techniques:  
@@ -89,7 +91,7 @@ These two metrics together provided insights into both classification accuracy a
 
 ### Experimentation with a RAG Model
 
-The `RAG_Model.ipynb` notebook allows you to configure a retrieval-augmented generation (RAG) pipeline using research data. It combines document embeddings, a vector database, and multiple LLMs to evaluate survey responses for spatial empathy.  
+The `RAG_Model.ipynb` notebook allows you to configure a retrieval-augmented generation (RAG) pipeline using research data. It [combines document embeddings](RAG_model.ipynb#doc_embed), a vector database, and [multiple LLMs to evaluate survey responses](RAG_model.ipynb#score_LLM) for spatial empathy.  
 
 For this example, we leverage survey responses from a UBC geography class and assess spatial empathy in their responses.
 
@@ -107,7 +109,7 @@ For this example, we leverage survey responses from a UBC geography class and as
    - Responses are processed into a list for evaluation.  
 
 #### Retrieval and Scoring Workflow
-The core of the notebook is the **RAG-based scoring pipeline**, which integrates retrieved context, emotion classification, and multiple LLM scorers:  
+The core of the notebook is the [**RAG-based scoring pipeline**](RAG_model.ipynb#score_llm), which integrates retrieved context and multiple LLM scorers:  
 
 1. **Vector Embedding and Retrieval**  
    - Documents are embedded into vector stores
