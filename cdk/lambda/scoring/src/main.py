@@ -200,7 +200,7 @@ def majority(scores):
 # -------- Grabbing agenda id, prompt, etc --------
 def parse_s3_file_path(file_key):
     # Assuming the file path is of the format: agendas/{agenda_id}/{document_type}/{original_file_name}_page_{page_num}_response_{response_num}.{file_type == 'txt'} 
-    print(f"file_key: {file_key}")
+    print(f"file_key:  {file_key}")
 
     try:
         agenda_id, document_type, filename_with_ext = file_key.split('/')[1:]
