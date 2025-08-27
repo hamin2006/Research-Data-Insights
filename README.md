@@ -16,7 +16,7 @@ This prototype explores how Large Language Models (LLMs) can enhance research wo
 
 The following architecture diagram illustrates the various AWS components utilized to deliver the solution. For an in-depth explanation of the frontend and backend stacks, please look at the [Architecture Guide](docs/architectureDeepDive.md).
 
-![Archnitecture Diagram](./docs/media/architecture.png)
+![Archnitecture Diagram](./docs/media/RDI-Architecture-Diagram.png)
 
 ## Deployment Guide
 

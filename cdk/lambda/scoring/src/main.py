@@ -118,18 +118,23 @@ def get_scoring_prompt(research_agenda_id: str | None) -> str:
         if row and row.get("prompt_text"):
             return row["prompt_text"]
 
-    return "You are a rater. Read the text and output ONLY a single integer 1-5.\n\nText:\n{{text}}\n"
+    return "Do you think the response invokes {{metric_name}}? Provide {{metric_description}}. Limit your response to an integer number between 1 and 10. Do not explain anything further. Please adhere to these guidelines strictly.\n\nText:\n{{text}}\n"
 
-def render_prompt(template: str, *, text: str, **kwargs) -> str:
-    """Supports both {{text}} and {text} placeholders."""
+def render_prompt(template: str, *, text: str, metric_name: str = "", metric_description: str = "", **kwargs) -> str:
+    """Supports both {{text}} and {text} placeholders, plus {{metric_name}} and {{metric_description}}."""
     p = template
-    # Jinja-ish
+    # Jinja-ish replacements
     p = re.sub(r"\{\{\s*text\s*\}\}", text, p)
+    p = re.sub(r"\{\{\s*metric_name\s*\}\}", metric_name, p)
+    p = re.sub(r"\{\{\s*metric_description\s*\}\}", metric_description, p)
+    
+    # Handle any additional kwargs
     for k, v in kwargs.items():
         p = re.sub(rf"\{{\{{\s*{re.escape(k)}\s*\}}\}}", str(v), p)
-    # Python format
+    
+    # Python format fallback
     try:
-        p = p.format(text=text, **kwargs)
+        p = p.format(text=text, metric_name=metric_name, metric_description=metric_description, **kwargs)
     except Exception:
         pass
     return p
@@ -302,10 +307,10 @@ def handler(event, context):
             template = get_scoring_prompt(agenda_id)
             text = clean_text(response_text)
 
-            # 2) render prompt
-            prompt = render_prompt(template, text=text)
+            # 2) render prompt with metric information
+            prompt = render_prompt(template, text=text, metric_name=metric_name, metric_description=metric_description)
 
-            # 3) score via majority vote
+            # 3) score using the specified scoring method
             per_model_scores = []
             for mid in scoring_models:
                 try:
@@ -316,7 +321,16 @@ def handler(event, context):
                 except Exception as e:
                     print(f"[ModelError] {mid} on {file_key}: {e}")
 
-                    
+            # Apply the appropriate scoring method
+            if scoring_method == "Mean":
+                predicted_score = mean(per_model_scores)
+            elif scoring_method == "Median":
+                predicted_score = median(per_model_scores)
+            elif scoring_method == "Majority":
+                predicted_score = majority(per_model_scores)
+            else:
+                # Default to majority if scoring_method is not recognized
+                predicted_score = majority(per_model_scores)
 
             resp = {
                 "file_key": file_key,
@@ -328,7 +342,7 @@ def handler(event, context):
                 "scoring_method": scoring_method,
                 "prompt": prompt,
                 "model_scores": per_model_scores,
-                "predicted_score": majority(per_model_scores)
+                "predicted_score": predicted_score
             }
 
             logger.warning(f"Scoring info: {resp}")
