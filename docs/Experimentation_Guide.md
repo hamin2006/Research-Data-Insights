@@ -96,15 +96,15 @@ The `RAG_Model.ipynb` notebook allows you to configure a retrieval-augmented gen
 For this example, we leverage survey responses from a UBC geography class and assess spatial empathy in their responses.
 
 #### Data Pipeline and Preprocessing
-1. **Context Documents**  
+1. [**Context Documents**](RAG_model.ipynb#context_doc)  
    - Text files in the `./context_docs` folder are loaded and enriched with user-provided descriptions.  
    - Each document is converted into a LangChain `Document` object with metadata (`source`, `description`).  
 
-2. **Embeddings and Vector Store**  
+2. [**Embeddings and Vector Store**](RAG_model.ipynb#doc_embed)  
    - Embeddings are generated using Amazon Bedrock (`amazon.titan-embed-text-v2:0`).  
    - Documents are stored in a `PGVector` collection, enabling similarity-based retrieval.  
 
-3. **Survey Responses**  
+3. [**Survey Responses**](RAG_model.ipynb#survey)  
    - Survey responses are read from `.txt` files in `./response_docs`.  
    - Responses are processed into a list for evaluation.  
 
@@ -116,7 +116,7 @@ The core of the notebook is the [**RAG-based scoring pipeline**](RAG_model.ipynb
    - For each evaluation question, the system retrieves the top-k most relevant context documents from the vector store.  
    - Retrieved documents provide grounding and descriptive context for response evaluation.
 
-2. **Model Scoring and Interaction**  
+2. [**Model Scoring and Interaction**](RAG_model.ipynb#score_surveys)
    - LLMs are used to score spatial empathy from 1 to 10 and we enable a multi modal scoring technique as presented earlier. 
    - Each model is prompted consistently with context and the evaluation question, and model scores are saved.
 
