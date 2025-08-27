@@ -226,8 +226,12 @@ def parse_s3_file_path(file_key):
                 return None
 
             metric_name, metric_description, hyperparameter_settings, scoring_models, scoring_method = result
-
             cur.close()
+            
+            if isinstance(scoring_models, str):
+                scoring_models = json.loads(scoring_models)
+            elif scoring_models is None:
+                scoring_models = []
 
             return agenda_id, metric_name, metric_description, hyperparameter_settings, scoring_models, scoring_method
 
@@ -273,45 +277,49 @@ def handler(event, context):
             print(f"Ignoring event from non-target bucket: {bucket_name}")
             continue  # Ignore this event and move to the next one
         file_key = record['s3']['object']['key']
-        agenda_id, metric_name, metric_description, hyperparameter_settings, scoring_models, scoring_method = parse_s3_file_path(file_key)
-        response_text = get_response_text(file_key)
     
-    try:
+        try:
 
-        # 1) fetch template from DB (agenda-specific → global → fallback)
-        template = get_scoring_prompt(agenda_id)
-        text = clean_text(response_text)
+            agenda_id, metric_name, metric_description, hyperparameter_settings, scoring_models, scoring_method = parse_s3_file_path(file_key)
+            response_text = get_response_text(file_key)
+            # 1) fetch template from DB (agenda-specific → global → fallback)
+            template = get_scoring_prompt(agenda_id)
+            text = clean_text(response_text)
 
-        # 2) render prompt
-        prompt = render_prompt(template, text=text)
+            # 2) render prompt
+            prompt = render_prompt(template, text=text)
 
-        # 3) score via majority vote
-        per_model_scores = []
-        for mid in scoring_models:
-            try:
-                raw = invoke_model(mid, prompt)
-                score = extract_integer_score(raw, N=10)
-                if score is not None:
-                    per_model_scores.append(score)
-            except Exception as e:
-                print(f"[ModelError] {mid} on {file_key}: {e}")
+            # 3) score via majority vote
+            per_model_scores = []
+            for mid in scoring_models:
+                try:
+                    raw = invoke_model(mid, prompt)
+                    score = extract_integer_score(raw, N=10)
+                    if score is not None:
+                        per_model_scores.append(score)
+                except Exception as e:
+                    print(f"[ModelError] {mid} on {file_key}: {e}")
 
-        resp = {
-            "file_key": file_key,
-            "text": text,
-            "model_scores": per_model_scores,
-            "predicted_score": majority(per_model_scores)
-        }
-        
-        return {
-            "statusCode": 200,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps(resp)
-        }
-    except Exception as e:
-        print(f"[HandlerError] {e}")
-        return {
-            "statusCode": 500,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"error": str(e)})
-        }
+            resp = {
+                "file_key": file_key,
+                "text": text,
+                "model_scores": per_model_scores,
+                "predicted_score": majority(per_model_scores)
+            }
+            
+            return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps(resp)
+            }
+        except Exception as e:
+            print(f"[HandlerError] {e}")
+            return {
+                "statusCode": 500,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": str(e)})
+            }
+    return {
+        "statusCode": 400,
+        "body": json.dumps("No new file upload or deletion event found.")
+    }
