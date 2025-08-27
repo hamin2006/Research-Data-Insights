@@ -306,6 +306,8 @@ def handler(event, context):
                 "model_scores": per_model_scores,
                 "predicted_score": majority(per_model_scores)
             }
+
+            logger.warning(f"Scoring info: {resp.toString()}")
             
             return {
                 "statusCode": 200,
