@@ -214,7 +214,7 @@ def parse_s3_file_path(file_key):
         try:
             query = """
             SELECT metric_name, metric_description, hyperparameter_settings, scoring_models, scoring_method
-            FROM context_documents
+            FROM research_agenda
             WHERE id_research_agenda = %s;
             """
             cur = _db_conn.cursor()

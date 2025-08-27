@@ -45,7 +45,7 @@ const cicdStack = new CICDStack(app, `${StackPrefix}-CICD`, {
     },
     {
       name: "scoring",
-      functionName: `${StackPrefix}-Api-scoringLambdaDockerFunction`,
+      functionName: `${StackPrefix}-Api-ScoringLambdaFunction`,
       sourceDir: "cdk/lambda/scoring",
     },
   ],
