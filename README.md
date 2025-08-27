@@ -1,6 +1,6 @@
 # Research-Data-Insights
 
-This prototype explores how Large Language Models (LLMs) can enhance research by analyzing large volumes of qualitative and quantitative data. By identifying patterns, scoring responses against user-defined metrics, and surfacing nuanced insights, it offers a scalable way to study complex concepts.
+This prototype explores how Large Language Models (LLMs) can enhance research workflows by enabling intelligent analysis of large volumes of qualitative and quantitative data. By identifying patterns, scoring responses against user-defined metrics, and surfacing nuanced insights through advanced data processing, it supports more efficient research decision-making, improves accessibility to complex datasets, and fosters deeper understanding of research content through personalized, adaptive AI assistance.
 
 | Index                                               | Description                                             |
 | :-------------------------------------------------- | :------------------------------------------------------ |
@@ -31,49 +31,61 @@ Please refer to the [Web App User Guide](./docs/userGuide.md) for instructions o
 ```
 ├── cdk/
 │   ├── bin/
-│   ├── data_ingestion/
 │   ├── lambda/
 │   ├── layers/
-│   ├── lib/
-│   └── graphql/
+│   ├── stacks/
+│   └── OpenAPI_Swagger_Definition.yaml
 
 ├── docs/
 │   ├── userGuide.md
 │   ├── deploymentGuide.md
-│   ├── images/
+│   ├── architectureDeepDive.md
+│   ├── securityGuide.md
+│   ├── Experimentation_Guide.md
+│   ├── data_ingestion.md
+│   ├── api-documentation.pdf
+│   └── media/
+
 ├── frontend/
 │   ├── public/
 │   └── src/
 │       ├── app/
 │       └── components/
 
+├── Notebooks/
+│   ├── LLM_scoring.ipynb
+│   └── RAG_model.ipynb
 ```
 
 1. `/cdk`: Contains the deployment code for the app's AWS infrastructure
    - `/bin`: Contains the instantiation of CDK stack
-   - `/data_ingestion`: Contains the code required for the Data Ingestion step in retrieval-augmented generation. This folder is used by a Lambda function that runs a container which updates the vectorstore for a course when files are uploaded or deleted.
-   - `/lambda`: Contains the lambda functions for the project
+   - `/lambda`: Contains the lambda functions for data ingestion, scoring, and other core functionalities
    - `/layers`: Contains the required layers for lambda functions
-   - `/lib`: Contains the deployment code for all infrastructure stacks
-   - `/graphql`: Contains the GraphQL schema and resolvers for the API.
-2. `/docs`: Contains documentation for the application.
-3. `/frontend`: Contains the user interface of the general public application
+   - `/stacks`: Contains the deployment code for all infrastructure stacks
+   - `OpenAPI_Swagger_Definition.yaml`: API specification for the research data insights service
+2. `/docs`: Contains comprehensive documentation for the application including user guides, deployment instructions, and architecture details
+3. `/frontend`: Contains the user interface of the research data insights application
+4. `/Notebooks`: Contains Jupyter notebooks for experimentation with LLM scoring and RAG (Retrieval-Augmented Generation) models
 
 ## API Documentation
 
 Here you can learn about the API the project uses: [API Documentation](./docs/api-documentation.pdf).
 
-## Dependency Management
+## Experimentation Guide
 
-For information on how Python dependencies are locked and managed across Lambda functions, see the [Dependency Management Guide](./docs/dependencyManagement.md).
+For information on how to experiment with the LLM scoring and RAG models using the provided Jupyter notebooks, see the [Experimentation Guide](./docs/Experimentation_Guide.md).
 
-## Modification Guide
+## Data Ingestion
 
-Steps to implement optional modifications such as changing the colours of the application can be found
-[here](./docs/modificationGuide.md).
+Details about the data ingestion process and how to work with research datasets can be found in the [Data Ingestion Guide](./docs/data_ingestion.md).
+
+## Security Guide
+
+Security considerations and best practices for deploying and using the research data insights platform are outlined in the [Security Guide](./docs/securityGuide.md).
 
 ## Credits
-This application was architected and developed by <a href="https://www.linkedin.com/in/prajna-nayak-807b1a247/" target="_blank">Prajna Nayak</a>, <a href="https://www.linkedin.com/in/zayans/" target="_blank">Zayan Sheikh</a>, and <a href="https://www.linkedin.com/in/kanishkhanna/" target="_blank">Kanish Khanna</a>, with project assistance by <a href="https://www.linkedin.com/in/harleen-chahal-713569141/6" target="_blank">Harleen Chahal</a>. Thanks to the UBC Cloud Innovation Centre Technical and Project Management teams for their guidance and support.
+
+This application was architected and developed by Harsh Amin, Rohit Murali, and <a href="https://www.linkedin.com/in/harleen-chahal-713569141/6" target="_blank">Harleen Chahal</a>. Thanks to the UBC Cloud Innovation Centre Technical and Project Management teams for their guidance and support.
 
 ## License
 
