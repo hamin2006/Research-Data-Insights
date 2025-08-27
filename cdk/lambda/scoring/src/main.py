@@ -279,6 +279,36 @@ def get_response_text(file_key):
     except Exception as e:
         logger.error(f"Error fetching response text from S3: {e}")
         raise
+
+def update_response_score(file_path: str, cleaned_text: str, predicted_score: float | None):
+    """Update the response record with scoring results and cleaned text."""
+    conn = _get_db_conn()
+    try:
+        with conn.cursor() as cur:
+            # Update the response with the score and cleaned text
+            cur.execute("""
+                UPDATE individual_responses 
+                SET score = %s, 
+                    response_text = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE file_path = %s;
+            """, (predicted_score, cleaned_text, file_path))
+            
+            if cur.rowcount == 0:
+                logger.warning(f"No response found with file_path: {file_path}")
+                return False
+            
+            conn.commit()
+            logger.info(f"Updated response score for {file_path}: {predicted_score}")
+            return True
+            
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error updating response score: {e}")
+        raise
+
+
+
 # -------------------- Lambda handler --------------------
 def handler(event, context):
     
@@ -332,6 +362,9 @@ def handler(event, context):
                 # Default to majority if scoring_method is not recognized
                 predicted_score = majority(per_model_scores)
 
+            # Update the database with scoring results
+            update_success = update_response_score(file_key, text, predicted_score)
+            
             resp = {
                 "file_key": file_key,
                 "text": text,
@@ -342,10 +375,11 @@ def handler(event, context):
                 "scoring_method": scoring_method,
                 "prompt": prompt,
                 "model_scores": per_model_scores,
-                "predicted_score": predicted_score
+                "predicted_score": predicted_score,
+                "db_updated": update_success
             }
 
-            logger.warning(f"Scoring info: {resp}")
+            logger.info(f"Scoring completed for {file_key}: {predicted_score}")
             
             return {
                 "statusCode": 200,
