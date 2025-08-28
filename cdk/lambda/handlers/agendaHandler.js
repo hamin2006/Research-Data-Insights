@@ -594,8 +594,8 @@ exports.handler = async (event) => {
             ir.metadata,
             ir.created_at,
             ir.updated_at,
+            ir.file_path,
             ro.document_name,
-            ro.file_path,
             ro.metric_score as observation_metric_score
           FROM individual_responses ir
           INNER JOIN research_observations ro 
@@ -605,6 +605,126 @@ exports.handler = async (event) => {
         `;
 
         response.body = JSON.stringify(individualResponses);
+        break;
+      }
+
+      case "DELETE /agenda/{agenda_id}/context-document/{context_document_id}": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const { agenda_id, context_document_id } = event.pathParameters;
+
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
+
+        if (!agenda_id || !context_document_id) {
+          throw new Error("Missing agenda ID or context document ID");
+        }
+
+        // Get user_id
+        const userRow = await sqlConnection`
+          SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+        `;
+
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found in users table");
+        }
+
+        const user_id = userRow[0].user_id;
+
+        // Check if user has access to the agenda (owner or collaborator)
+        const accessCheck = await sqlConnection`
+          SELECT ra.* FROM research_agenda ra
+          LEFT JOIN agenda_collaborators ac ON ra.id_research_agenda = ac.research_agenda_id
+          WHERE ra.id_research_agenda = ${agenda_id} 
+          AND (ra.user_id = ${user_id} OR ac.user_id = ${user_id})
+          LIMIT 1
+        `;
+
+        if (!accessCheck || accessCheck.length === 0) {
+          throw new Error("Agenda not found or access denied");
+        }
+
+        // Verify the context document belongs to this agenda and delete it
+        const deleteResult = await sqlConnection`
+          DELETE FROM context_documents 
+          WHERE id_context_doc = ${context_document_id} 
+          AND research_agenda_id = ${agenda_id}
+          RETURNING id_context_doc
+        `;
+
+        if (!deleteResult || deleteResult.length === 0) {
+          throw new Error(
+            "Context document not found or doesn't belong to this agenda"
+          );
+        }
+
+        response.body = JSON.stringify({
+          message: "Context document deleted successfully",
+          deleted_id: context_document_id,
+        });
+        break;
+      }
+
+      case "DELETE /agenda/{agenda_id}/research-observation/{observation_id}": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const { agenda_id, observation_id } = event.pathParameters;
+
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
+
+        if (!agenda_id || !observation_id) {
+          throw new Error("Missing agenda ID or observation ID");
+        }
+
+        // Get user_id
+        const userRow = await sqlConnection`
+          SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+        `;
+
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found in users table");
+        }
+
+        const user_id = userRow[0].user_id;
+
+        // Check if user has access to the agenda (owner or collaborator)
+        const accessCheck = await sqlConnection`
+          SELECT ra.* FROM research_agenda ra
+          LEFT JOIN agenda_collaborators ac ON ra.id_research_agenda = ac.research_agenda_id
+          WHERE ra.id_research_agenda = ${agenda_id} 
+          AND (ra.user_id = ${user_id} OR ac.user_id = ${user_id})
+          LIMIT 1
+        `;
+
+        if (!accessCheck || accessCheck.length === 0) {
+          throw new Error("Agenda not found or access denied");
+        }
+
+        // Delete related individual responses first (cascade)
+        await sqlConnection`
+          DELETE FROM individual_responses 
+          WHERE observation_id = ${observation_id}
+        `;
+
+        // Verify the research observation belongs to this agenda and delete it
+        const deleteResult = await sqlConnection`
+          DELETE FROM research_observations 
+          WHERE id_research_observations = ${observation_id} 
+          AND research_agenda_id = ${agenda_id}
+          RETURNING id_research_observations
+        `;
+
+        if (!deleteResult || deleteResult.length === 0) {
+          throw new Error(
+            "Research observation not found or doesn't belong to this agenda"
+          );
+        }
+
+        response.body = JSON.stringify({
+          message: "Research observation deleted successfully",
+          deleted_id: observation_id,
+        });
         break;
       }
 

@@ -76,9 +76,34 @@ export default function Responses() {
     setResponseGroups((prev) => [...prev, groupWithId]);
   };
 
-  const handleDeleteGroup = (groupId, event) => {
+  const handleDeleteGroup = async (groupId, event) => {
     event.stopPropagation();
-    setResponseGroups((prev) => prev.filter((group) => group.id !== groupId));
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_ENDPOINT
+        }agenda/${agendaId}/research-observation/${groupId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        }
+      );
+
+      if (response.ok) {
+        setResponseGroups((prev) =>
+          prev.filter((group) => group.id_research_observations !== groupId)
+        );
+      } else {
+        console.error("Failed to delete research observation");
+      }
+    } catch (error) {
+      console.error("Error deleting research observation:", error);
+    }
   };
 
   if (loading) {
@@ -176,7 +201,9 @@ export default function Responses() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={(e) => handleDeleteGroup(group.id, e)}
+                    onClick={(e) =>
+                      handleDeleteGroup(group.id_research_observations, e)
+                    }
                     sx={{
                       "&:hover": { backgroundColor: "rgba(244, 67, 54, 0.1)" },
                     }}

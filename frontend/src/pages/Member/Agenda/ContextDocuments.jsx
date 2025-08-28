@@ -60,8 +60,33 @@ export default function ContextDocuments() {
     return status === "uploaded" ? "success" : "warning";
   };
 
-  const handleDeleteDocument = (docId) => {
-    setDocuments((prev) => prev.filter((doc) => doc.id !== docId));
+  const handleDeleteDocument = async (docId) => {
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_ENDPOINT
+        }agenda/${agendaId}/context-document/${docId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token,
+          },
+        }
+      );
+
+      if (response.ok) {
+        setDocuments((prev) =>
+          prev.filter((doc) => doc.id_context_doc !== docId)
+        );
+      } else {
+        console.error("Failed to delete context document");
+      }
+    } catch (error) {
+      console.error("Error deleting context document:", error);
+    }
   };
 
   const handleAddDocument = (newDoc) => {
@@ -138,7 +163,7 @@ export default function ContextDocuments() {
           <TableBody>
             {documents.map((doc) => (
               <TableRow
-                key={doc.id}
+                key={doc.id_context_doc}
                 sx={{
                   "&:hover": { backgroundColor: "#F9FAFB" },
                   backgroundColor: "transparent",
@@ -167,7 +192,7 @@ export default function ContextDocuments() {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDeleteDocument(doc.id)}
+                    onClick={() => handleDeleteDocument(doc.id_context_doc)}
                     sx={{
                       "&:hover": { backgroundColor: "rgba(244, 67, 54, 0.1)" },
                     }}
