@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom"; // or however you get agenda_id
+import { useParams } from "react-router-dom";
 import { fetchAuthSession } from "aws-amplify/auth";
 import {
   Box,
@@ -15,7 +15,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { Upload, Delete } from "@mui/icons-material";
-import ResponseGroupDetail from "./ResponseGroups";
+import ResponseGroups from "./ResponseGroups";
 import AddResponseModal from "./AddResponseModal";
 
 export default function Responses() {
@@ -60,8 +60,8 @@ export default function Responses() {
     return status === "uploaded" ? "success" : "warning";
   };
 
-  const handleGroupClick = (groupId) => {
-    setSelectedGroup(groupId);
+  const handleGroupClick = async (group) => {
+    setSelectedGroup(group);
   };
 
   const handleBackClick = () => {
@@ -86,9 +86,7 @@ export default function Responses() {
   }
 
   if (selectedGroup) {
-    return (
-      <ResponseGroupDetail groupId={selectedGroup} onBack={handleBackClick} />
-    );
+    return <ResponseGroups group={selectedGroup} onBack={handleBackClick} />;
   }
 
   return (
@@ -150,13 +148,13 @@ export default function Responses() {
           <TableBody>
             {responseGroups.map((group) => (
               <TableRow
-                key={group.id}
+                key={group.id_research_observations}
                 sx={{
                   "&:hover": { backgroundColor: "#F9FAFB" },
                   cursor: "pointer",
                   backgroundColor: "transparent",
                 }}
-                onClick={() => handleGroupClick(group.id)}
+                onClick={() => handleGroupClick(group)}
               >
                 <TableCell
                   sx={{

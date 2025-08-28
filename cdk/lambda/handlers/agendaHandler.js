@@ -533,6 +533,81 @@ exports.handler = async (event) => {
         break;
       }
 
+      case "GET /agenda/{agenda_id}/research-observation/{observation_id}/individual-responses": {
+        const cognito_id = event.requestContext?.authorizer?.userId;
+        const { agenda_id, observation_id } = event.pathParameters;
+
+        if (!cognito_id) {
+          throw new Error("Missing user ID");
+        }
+
+        if (!agenda_id || !observation_id) {
+          throw new Error("Missing agenda ID or observation ID");
+        }
+
+        // Get user_id
+        const userRow = await sqlConnection`
+          SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
+        `;
+
+        if (!userRow || userRow.length === 0) {
+          throw new Error("User not found in users table");
+        }
+
+        const user_id = userRow[0].user_id;
+
+        // Check if user has access to the agenda (owner or collaborator)
+        const accessCheck = await sqlConnection`
+          SELECT ra.* FROM research_agenda ra
+          LEFT JOIN agenda_collaborators ac ON ra.id_research_agenda = ac.research_agenda_id
+          WHERE ra.id_research_agenda = ${agenda_id} 
+          AND (ra.user_id = ${user_id} OR ac.user_id = ${user_id})
+          LIMIT 1
+        `;
+
+        if (!accessCheck || accessCheck.length === 0) {
+          throw new Error("Agenda not found or access denied");
+        }
+
+        // Verify the observation belongs to this agenda
+        const observationCheck = await sqlConnection`
+          SELECT id_research_observations FROM research_observations 
+          WHERE id_research_observations = ${observation_id} 
+          AND research_agenda_id = ${agenda_id}
+        `;
+
+        if (!observationCheck || observationCheck.length === 0) {
+          throw new Error(
+            "Research observation not found or doesn't belong to this agenda"
+          );
+        }
+
+        // Get all individual responses for this observation
+        const individualResponses = await sqlConnection`
+          SELECT 
+            ir.id_individual_response,
+            ir.observation_id,
+            ir.research_agenda_id,
+            ir.response_text,
+            ir.response_order,
+            ir.score,
+            ir.metadata,
+            ir.created_at,
+            ir.updated_at,
+            ro.document_name,
+            ro.file_path,
+            ro.metric_score as observation_metric_score
+          FROM individual_responses ir
+          INNER JOIN research_observations ro 
+            ON ir.observation_id = ro.id_research_observations
+          WHERE ir.observation_id = ${observation_id}
+          ORDER BY ir.created_at ASC, ir.response_order ASC
+        `;
+
+        response.body = JSON.stringify(individualResponses);
+        break;
+      }
+
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }

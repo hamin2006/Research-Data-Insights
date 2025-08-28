@@ -1,46 +1,55 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom"; // or however you get agenda_id
+import { useParams } from "react-router-dom";
 import { fetchAuthSession } from "aws-amplify/auth";
 import {
+  Paper,
   Box,
   Typography,
+  Button,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
-import { Upload, Delete } from "@mui/icons-material";
-import ResponseGroupDetail from "./ResponseGroups";
-import AddResponseModal from "./AddResponseModal";
+import { ArrowBack, Add, Visibility } from "@mui/icons-material";
 
-export default function Responses() {
-  const { agendaId } = useParams(); // Get agenda ID from URL
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const [responseGroups, setResponseGroups] = useState([]);
-  const [agendaName, setAgendaName] = useState("");
+export default function ResponseGroups({ group, onBack }) {
+  const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedResponse, setSelectedResponse] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { agendaId } = useParams();
 
   useEffect(() => {
-    const fetchResponseGroups = async () => {
+    const fetchResponses = async () => {
+      setLoading(true);
       try {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
 
-        const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_API_ENDPOINT
+          }agenda/${agendaId}/research-observation/${
+            group.id_research_observations
+          }/individual-responses`,
+          {
+            headers: {
+              Authorization: token,
+            },
           }
-        });
+        );
 
-        const agendaData = await response.json();
-        setResponseGroups(agendaData.research_observations || []);
-        setAgendaName(agendaData.agenda_name || "");
+        const responses = await response.json();
+        console.log(responses);
+        setResponses(responses);
       } catch (error) {
         console.error("Error fetching response groups:", error);
       } finally {
@@ -48,113 +57,89 @@ export default function Responses() {
       }
     };
 
-    if (agendaId) {
-      fetchResponseGroups();
+    if (agendaId && group) {
+      fetchResponses();
     }
-  }, [agendaId]);
+  }, [agendaId, group]);
 
-  const getStatusColor = (status) => {
-    return status === "Uploaded" ? "success" : "warning";
+  const handleViewResponse = (response) => {
+    setSelectedResponse(response);
+    setDialogOpen(true);
   };
 
-  const handleGroupClick = (groupId) => {
-    setSelectedGroup(groupId);
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedResponse(null);
   };
 
-  const handleBackClick = () => {
-    setSelectedGroup(null);
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
-
-  const handleAddResponseGroup = (newGroup) => {
-    const groupWithId = {
-      id: responseGroups.length + 1,
-      ...newGroup,
-      status: "Uploaded",
-    };
-    setResponseGroups((prev) => [...prev, groupWithId]);
-  };
-
-  const handleDeleteGroup = (groupId, event) => {
-    event.stopPropagation();
-    setResponseGroups((prev) => prev.filter((group) => group.id !== groupId));
-  };
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (selectedGroup) {
-    return (
-      <ResponseGroupDetail groupId={selectedGroup} onBack={handleBackClick} />
-    );
-  }
 
   return (
     <Box>
-      <Typography
-        variant="h4"
-        sx={{ fontWeight: 600, color: "#1F2937", mb: 3 }}
-      >
-        {agendaName}
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+        <IconButton
+          onClick={onBack}
+          sx={{
+            mr: 2,
+            backgroundColor: "#8B5CF6",
+            color: "white",
+            "&:hover": {
+              backgroundColor: "#7C3AED",
+            },
+          }}
+        >
+          <ArrowBack />
+        </IconButton>
+        <Typography variant="h4" sx={{ fontWeight: 600, color: "#1F2937" }}>
+          Spatial Empathy
+        </Typography>
+      </Box>
+
+      <Typography variant="h5" sx={{ mb: 3, color: "#374151" }}>
+        Response Group: {group.document_name}
       </Typography>
 
-      {/* Upload Area */}
-      <Paper
-        sx={{
-          p: 4,
-          mb: 3,
-          borderRadius: 2,
-          backgroundColor: "rgba(139, 92, 246, 0.1)",
-          border: "2px dashed rgba(139, 92, 246, 0.3)",
-          textAlign: "center",
-          cursor: "pointer",
-          "&:hover": {
-            backgroundColor: "rgba(139, 92, 246, 0.15)",
-          },
-        }}
-        onClick={() => setIsAddModalOpen(true)}
-      >
-        <Upload sx={{ fontSize: 48, color: "#8B5CF6", mb: 2 }} />
-        <Typography variant="h6" sx={{ mb: 1, color: "#8B5CF6" }}>
-          Add Responses
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Click to upload or drag and drop files
-        </Typography>
-      </Paper>
-
       <Typography variant="h6" sx={{ mb: 2, color: "#6B7280" }}>
-        Response Group Table
+        Responses Table
       </Typography>
 
       <TableContainer
         component={Paper}
-        sx={{ borderRadius: 2, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}
+        sx={{ borderRadius: 2, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", mb: 3 }}
       >
         <Table>
           <TableHead>
             <TableRow sx={{ backgroundColor: "#F9FAFB" }}>
               <TableCell sx={{ fontWeight: 600, color: "#374151" }}>
-                File Name
+                Response
               </TableCell>
               <TableCell sx={{ fontWeight: 600, color: "#374151" }}>
-                Status
+                Text
               </TableCell>
               <TableCell sx={{ fontWeight: 600, color: "#374151" }}>
-                Actions
+                LLM Score
+              </TableCell>
+              <TableCell sx={{ fontWeight: 600, color: "#374151" }}>
+                Parsed At
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {responseGroups.map((group) => (
+            {responses.map((response, index) => (
               <TableRow
-                key={group.id}
+                key={response.id_individual_response}
                 sx={{
                   "&:hover": { backgroundColor: "#F9FAFB" },
-                  cursor: "pointer",
                   backgroundColor: "transparent",
                 }}
-                onClick={() => handleGroupClick(group.id)}
               >
                 <TableCell
                   sx={{
@@ -162,27 +147,29 @@ export default function Responses() {
                     fontWeight: 400,
                   }}
                 >
-                  {group.document_name}
+                  Response {index + 1}
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label="Uploaded"
-                    color="success"
+                  <Button
                     size="small"
-                    sx={{ borderRadius: 1 }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={(e) => handleDeleteGroup(group.id, e)}
+                    startIcon={<Visibility />}
+                    onClick={() => handleViewResponse(response)}
                     sx={{
-                      "&:hover": { backgroundColor: "rgba(244, 67, 54, 0.1)" },
+                      textTransform: "none",
+                      color: "#8B5CF6",
+                      "&:hover": {
+                        backgroundColor: "#F3F4F6",
+                      },
                     }}
                   >
-                    <Delete />
-                  </IconButton>
+                    View Text
+                  </Button>
+                </TableCell>
+                <TableCell sx={{ color: "#6B7280" }}>
+                  {response.score}
+                </TableCell>
+                <TableCell sx={{ color: "#6B7280" }}>
+                  {formatDate(response.created_at)}
                 </TableCell>
               </TableRow>
             ))}
@@ -190,11 +177,63 @@ export default function Responses() {
         </Table>
       </TableContainer>
 
-      <AddResponseModal
-        open={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddGroup={handleAddResponseGroup}
-      />
+      {/* Response Text Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: "80vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 600,
+            color: "#1F2937",
+            borderBottom: "1px solid #E5E7EB",
+          }}
+        >
+          Response{" "}
+          {responses.findIndex(
+            (r) =>
+              r.id_individual_response ===
+              selectedResponse?.id_individual_response
+          ) + 1}{" "}
+          - Full Text
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "#374151",
+              lineHeight: 1.6,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {selectedResponse?.response_text}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, borderTop: "1px solid #E5E7EB" }}>
+          <Button
+            onClick={handleCloseDialog}
+            variant="contained"
+            sx={{
+              backgroundColor: "#8B5CF6",
+              borderRadius: 2,
+              textTransform: "none",
+              "&:hover": {
+                backgroundColor: "#7C3AED",
+              },
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

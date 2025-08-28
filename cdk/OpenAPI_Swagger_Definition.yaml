@@ -1256,6 +1256,110 @@ paths:
         httpMethod: "POST"
         type: "aws_proxy"
 
+  /agenda/{agenda_id}/research-observation/{observation_id}/individual-responses:
+    parameters:
+      - name: agenda_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: observation_id
+        in: path
+        required: true
+        schema:
+          type: string
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Member
+      summary: Get individual responses for a research observation
+      operationId: getIndividualResponses
+      responses:
+        "200":
+          description: List of individual responses with scores and observation details
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id_individual_response:
+                      type: string
+                      format: uuid
+                    observation_id:
+                      type: string
+                      format: uuid
+                    research_agenda_id:
+                      type: string
+                      format: uuid
+                    response_text:
+                      type: string
+                    response_order:
+                      type: integer
+                    score:
+                      type: number
+                      format: decimal
+                    metadata:
+                      type: object
+                    created_at:
+                      type: string
+                      format: date-time
+                    updated_at:
+                      type: string
+                      format: date-time
+                    document_name:
+                      type: string
+                    file_path:
+                      type: string
+                    observation_metric_score:
+                      type: integer
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Access denied
+        "404":
+          description: Agenda or observation not found
+        "500":
+          description: Internal Server Error
+      security:
+        - memberAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${agendaFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
   /admin/message_limit:
     options:
       summary: CORS support
