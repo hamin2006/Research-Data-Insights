@@ -644,6 +644,11 @@ exports.handler = async (event) => {
           throw new Error("Agenda not found or access denied");
         }
 
+        await sqlConnection`
+          DELETE FROM langchain_pg_collection 
+          WHERE name = ${context_document_id}
+        `;
+
         // Verify the context document belongs to this agenda and delete it
         const deleteResult = await sqlConnection`
           DELETE FROM context_documents 
@@ -700,6 +705,11 @@ exports.handler = async (event) => {
         if (!accessCheck || accessCheck.length === 0) {
           throw new Error("Agenda not found or access denied");
         }
+
+        await sqlConnection`
+          DELETE FROM langchain_pg_collection 
+          WHERE name = ${observation_id}
+        `;
 
         // Delete related individual responses first (cascade)
         await sqlConnection`
