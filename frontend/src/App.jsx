@@ -147,29 +147,14 @@ function App() {
           />
           <Route path="/home" element={getHomePage()} />
           <Route
-            path="/admin"
-            element={
-              <ProtectedRoute
-                allowedGroups={["admin"]}
-                userGroup={userGroup}
-                element={<AdminHomePage />}
-              />
-            }
-          />
-          <Route path="/member" element={<MemberHomePage />} />
-          <Route
-            path="/researcher"
-            element={
-              <ProtectedRoute
-                allowedGroups={["researcher"]}
-                userGroup={userGroup}
-                element={<ResearcherHomePage />}
-              />
-            }
-          />
-          <Route
             path="/all-agendas"
-            element={<AllAgendas role={getUserRole()} />}
+            element={
+              <ProtectedRoute
+                allowedGroups={["member", "researcher"]}
+                userGroup={userGroup}
+                element={<AllAgendas role={getUserRole()} />}
+              />
+            }
           />
           <Route
             path="/ai-settings"
@@ -187,7 +172,7 @@ function App() {
               <ProtectedRoute
                 allowedGroups={["researcher"]}
                 userGroup={userGroup}
-                element={<AgendaForm messageLimit={100} />}
+                element={<AgendaForm />}
               />
             }
           />
@@ -206,7 +191,13 @@ function App() {
           <Route
             path="agenda/:agendaId/prompt-settings"
             element={
-              <AgendaView tab={"Prompt Settings"} role={getUserRole()} />
+              <ProtectedRoute
+                allowedGroups={["member", "researcher"]}
+                userGroup={userGroup}
+                element={
+                  <AgendaView tab={"Prompt Settings"} role={getUserRole()} />
+                }
+              />
             }
           />
           <Route
@@ -223,18 +214,36 @@ function App() {
           />
           <Route
             path="agenda/:agendaId/responses"
-            element={<AgendaView tab={"Responses"} role={getUserRole()} />}
+            element={
+              <ProtectedRoute
+                allowedGroups={["member", "researcher"]}
+                userGroup={userGroup}
+                element={<AgendaView tab={"Responses"} role={getUserRole()} />}
+              />
+            }
           />
           <Route
             path="agenda/:agendaId/context-documents"
             element={
-              <AgendaView tab={"Context Documents"} role={getUserRole()} />
+              <ProtectedRoute
+                allowedGroups={["member", "researcher"]}
+                userGroup={userGroup}
+                element={
+                  <AgendaView tab={"Context Documents"} role={getUserRole()} />
+                }
+              />
             }
           />
           <Route
             path="agenda/:agendaId/chat"
             element={
-              <AgendaView tab={"Insights Generator"} role={getUserRole()} />
+              <ProtectedRoute
+                allowedGroups={["member", "researcher"]}
+                userGroup={userGroup}
+                element={
+                  <AgendaView tab={"Insights Generator"} role={getUserRole()} />
+                }
+              />
             }
           />
         </Routes>

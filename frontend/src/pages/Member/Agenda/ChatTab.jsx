@@ -610,7 +610,7 @@ export default function ChatTab() {
               onChange={(e) => handleModelChange(e.target.value)}
               size="small"
             >
-              <MenuItem value="Meta Llama 3 8b">Meta Llama 3 8b</MenuItem>
+              <MenuItem value="Meta Llama 3">Meta Llama 3 8b</MenuItem>
               <MenuItem value="Mistral Large 2402">Mistral Large 2402</MenuItem>
               <MenuItem value="Amazon Titan Express V1">
                 Amazon Titan Express V1

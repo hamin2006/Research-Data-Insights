@@ -33,7 +33,7 @@ import {
   Close as CloseIcon,
 } from "@mui/icons-material";
 import CssBaseline from "@mui/material/CssBaseline";
-import AdminNavbar from "./AdminNavbar";
+import AdminNavbar from "../../components/AdminNavbar";
 import { fetchAuthSession } from "aws-amplify/auth";
 
 export default function AdminHomePage() {

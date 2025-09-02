@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -16,12 +16,41 @@ import {
   Person as PersonIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { signOut } from "aws-amplify/auth";
+import { signOut, fetchAuthSession } from "aws-amplify/auth";
 
 const ResearcherNavbar = () => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [username, setUsername] = useState("Username");
   const open = Boolean(anchorEl);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_ENDPOINT}user`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const data = await response.json();
+        console.log(data);
+        setUsername(`${data.first_name} ${data.last_name}`);
+      } catch (error) {
+        console.error("Error loading researchers:", error);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   const handleClick = (event) => {
     event.stopPropagation();
@@ -80,7 +109,7 @@ const ResearcherNavbar = () => {
             },
             {
               icon: <PersonIcon />,
-              label: "Username",
+              label: username,
               onClick: handleClick,
             },
           ].map((item, index) => (

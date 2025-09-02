@@ -15,30 +15,22 @@ import {
   Person as PersonIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import {
-  signOut,
-  fetchAuthSession,
-  fetchUserAttributes,
-} from "aws-amplify/auth";
+import { signOut, fetchAuthSession } from "aws-amplify/auth";
 
 const MemberNavbar = () => {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
+  const [username, setUsername] = useState("Username");
   const open = Boolean(anchorEl);
-  /*
+
   useEffect(() => {
-    const fetchName = async () => {
+    const loadUser = async () => {
       try {
         const session = await fetchAuthSession();
-        const userAttributes = await fetchUserAttributes();
         const token = session.tokens.idToken;
-        const email = userAttributes.email;
 
         const response = await fetch(
-          `${
-            import.meta.env.VITE_API_ENDPOINT
-          }student/get_name?user_email=${encodeURIComponent(email)}`,
+          `${import.meta.env.VITE_API_ENDPOINT}user`,
           {
             method: "GET",
             headers: {
@@ -47,16 +39,17 @@ const MemberNavbar = () => {
             },
           }
         );
+
         const data = await response.json();
-        setName(data.name);
+        console.log(data);
+        setUsername(`${data.first_name} ${data.last_name}`);
       } catch (error) {
-        console.error("Error fetching name:", error);
+        console.error("Error loading researchers:", error);
       }
     };
 
-    fetchName();
+    loadUser();
   }, []);
-  */
 
   const handleClick = (event) => {
     event.stopPropagation();
@@ -112,7 +105,7 @@ const MemberNavbar = () => {
             },
             {
               icon: <PersonIcon />,
-              label: "Username",
+              label: username,
               onClick: handleClick,
             },
           ].map((item, index) => (

@@ -56,6 +56,65 @@ paths:
             responseTemplates:
               application/json: |
                 {}
+    get:
+      tags:
+        - Member
+      summary: Get current user information
+      operationId: member_user_GET
+      responses:
+        "200":
+          description: User information retrieved successfully
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cognito_id:
+                    type: string
+                    description: Cognito user ID
+                  user_email:
+                    type: string
+                    description: Email of the user
+                  username:
+                    type: string
+                    description: Username of the user
+                  first_name:
+                    type: string
+                    description: First name of the user
+                  last_name:
+                    type: string
+                    description: Last name of the user
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    description: User roles
+                  time_account_created:
+                    type: string
+                    format: date-time
+                    description: Account creation timestamp
+                  last_sign_in:
+                    type: string
+                    format: date-time
+                    description: Last sign in timestamp
+        "401":
+          description: Unauthorized
+        "404":
+          description: User not found
+        "500":
+          description: Internal Server Error
+      security:
+        - memberAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${userFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
     post:
       tags:
         - Member

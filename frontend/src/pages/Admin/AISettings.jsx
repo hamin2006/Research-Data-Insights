@@ -10,7 +10,7 @@ import {
   Checkbox,
   FormControlLabel,
 } from "@mui/material";
-import AdminNavbar from "./AdminNavbar";
+import AdminNavbar from "../../components/AdminNavbar";
 import WarningModal from "../../components/WarningModal";
 import { fetchAuthSession } from "aws-amplify/auth";
 
