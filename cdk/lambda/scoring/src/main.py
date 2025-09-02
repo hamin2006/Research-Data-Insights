@@ -94,6 +94,7 @@ def get_scoring_prompt(research_agenda_id: str | None) -> str:
       3) built-in fallback
     """
     conn = _get_db_conn()
+    user_prompt = ""
     with conn.cursor(row_factory=dict_row) as cur:
         if research_agenda_id:
             cur.execute("""
@@ -105,20 +106,28 @@ def get_scoring_prompt(research_agenda_id: str | None) -> str:
             """, (research_agenda_id,))
             row = cur.fetchone()
             if row and row.get("prompt_text"):
-                return row["prompt_text"]
+                user_prompt = row["prompt_text"]
+        
+        if not user_prompt:
+            cur.execute("""
+                SELECT prompt_text
+                FROM research_agenda_prompts
+                WHERE prompt_type = 'scoring' AND research_agenda_id IS NULL
+                ORDER BY is_default DESC, updated_at DESC NULLS LAST, created_at DESC
+                LIMIT 1;
+            """)
+            row = cur.fetchone()
+            if row and row.get("prompt_text"):
+                user_prompt = row["prompt_text"]
 
-        cur.execute("""
-            SELECT prompt_text
-            FROM research_agenda_prompts
-            WHERE prompt_type = 'scoring' AND research_agenda_id IS NULL
-            ORDER BY is_default DESC, updated_at DESC NULLS LAST, created_at DESC
-            LIMIT 1;
-        """)
-        row = cur.fetchone()
-        if row and row.get("prompt_text"):
-            return row["prompt_text"]
-
-    return "Do you think the response invokes {{metric_name}} (scoring metric)? Metric Description: {{metric_description}}. Limit your response to an integer number between 1 and 10. Do not explain anything further. Please adhere to these guidelines strictly.\n\nText:\n{{text}}\n"
+    # Base prompt that always gets included
+    base_prompt = "Do you think the response invokes {{metric_name}} (scoring metric)? Metric Description: {{metric_description}}. Limit your response to only a number. Do not explain anything further. Please adhere to these guidelines strictly.\n\nText:\n{{text}}\n"
+    
+    # If we have a user prompt, incorporate it into the final string
+    if user_prompt:
+        return f"{user_prompt}\n\n{base_prompt}"
+    else:
+        return base_prompt
 
 def render_prompt(template: str, *, text: str, metric_name: str = "", metric_description: str = "", **kwargs) -> str:
     """Supports both {{text}} and {text} placeholders, plus {{metric_name}} and {{metric_description}}."""
