@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import { ArrowBack, Add, Visibility } from "@mui/icons-material";
 
-export default function ResponseGroups({ group, onBack }) {
+export default function ResponseGroups({ agendaName, group, onBack }) {
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedResponse, setSelectedResponse] = useState(null);
@@ -99,7 +99,7 @@ export default function ResponseGroups({ group, onBack }) {
           <ArrowBack />
         </IconButton>
         <Typography variant="h4" sx={{ fontWeight: 600, color: "#1F2937" }}>
-          Spatial Empathy
+          {agendaName}
         </Typography>
       </Box>
 

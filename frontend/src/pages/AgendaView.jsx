@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Box } from "@mui/material";
 import MemberSidebar from "./Member/Agenda/MemberSidebar";
 import ResearcherSidebar from "./Researcher/Agenda/ResearcherSidebar";
@@ -13,6 +13,8 @@ import ChatTab from "./Member/Agenda/ChatTab";
 export default function MemberAgendaView({ tab, role }) {
   const { agendaId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const agendaName = location.state?.agendaName || "Agenda";
 
   const renderContent = () => {
     switch (tab) {
@@ -38,27 +40,28 @@ export default function MemberAgendaView({ tab, role }) {
   };
 
   const goToActiveTab = (newTab) => {
+    const state = { agendaName };
     switch (newTab) {
       case "Responses":
-        navigate(`/agenda/${agendaId}/responses`);
+        navigate(`/agenda/${agendaId}/responses`, { state });
         break;
       case "Context Documents":
-        navigate(`/agenda/${agendaId}/context-documents`);
+        navigate(`/agenda/${agendaId}/context-documents`, { state });
         break;
       case "Prompt Settings":
-        navigate(`/agenda/${agendaId}/prompt-settings`);
+        navigate(`/agenda/${agendaId}/prompt-settings`, { state });
         break;
       case "Insights Generator":
-        navigate(`/agenda/${agendaId}/chat`);
+        navigate(`/agenda/${agendaId}/chat`, { state });
         break;
       case "Collaborators":
-        navigate(`/agenda/${agendaId}/collaborators`);
+        navigate(`/agenda/${agendaId}/collaborators`, { state });
         break;
       case "AI Settings":
-        navigate(`/agenda/${agendaId}/ai-settings`);
+        navigate(`/agenda/${agendaId}/ai-settings`, { state });
         break;
       default:
-        navigate(`/agenda/${agendaId}/responses`);
+        navigate(`/agenda/${agendaId}/responses`, { state });
         break;
     }
   };
@@ -75,7 +78,11 @@ export default function MemberAgendaView({ tab, role }) {
       }}
     >
       <Box sx={{ display: "flex", minHeight: "100vh" }}>
-        <Sidebar activeTab={tab} onTabChange={goToActiveTab} />
+        <Sidebar
+          activeTab={tab}
+          onTabChange={goToActiveTab}
+          agendaName={agendaName}
+        />
         <Box
           component="main"
           sx={{ flexGrow: 1, p: 3, backgroundColor: "#F3F4F6" }}

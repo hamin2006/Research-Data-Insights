@@ -41,8 +41,8 @@ const ResearcherHomePage = () => {
     fetchAgendas();
   }, []);
 
-  const handleResearchViewAgenda = (id) => {
-    navigate(`/agenda/${id}/collaborators`);
+  const handleResearchViewAgenda = (id, agendaName) => {
+    navigate(`/agenda/${id}/collaborators`, { state: { agendaName } });
   };
 
   const handleDeleteAgenda = async (agendaId) => {
@@ -116,7 +116,10 @@ const ResearcherHomePage = () => {
                   index={index}
                   role="researcher"
                   onClick={() =>
-                    handleResearchViewAgenda(agenda.id_research_agenda)
+                    handleResearchViewAgenda(
+                      agenda.id_research_agenda,
+                      agenda.agenda_name
+                    )
                   }
                   onDelete={() => handleDeleteAgenda(agenda.id_research_agenda)}
                 />

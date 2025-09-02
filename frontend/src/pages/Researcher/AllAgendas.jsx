@@ -111,11 +111,11 @@ export default function Component({ role }) {
     }
   };
 
-  const handleResearchViewAgenda = (id) => {
+  const handleResearchViewAgenda = (id, agendaName) => {
     if (role === "researcher") {
-      navigate(`/agenda/${id}/collaborators`);
+      navigate(`/agenda/${id}/collaborators`, { state: { agendaName } });
     } else if (role === "member") {
-      navigate(`/agenda/${id}/responses`);
+      navigate(`/agenda/${id}/responses`, { state: { agendaName } });
     }
   };
 

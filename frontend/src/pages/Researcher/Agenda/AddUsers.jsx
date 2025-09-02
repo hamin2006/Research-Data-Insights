@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { Box, 
+import {
+  Box,
   Typography,
   Table,
   TableBody,
@@ -28,7 +29,6 @@ export default function AddUsers() {
 
   useEffect(() => {
     fetchCollaborators();
-    fetchAgendaName();
   }, [agendaId]);
 
   const fetchCollaborators = async () => {
@@ -36,16 +36,23 @@ export default function AddUsers() {
       const session = await fetchAuthSession();
       const token = session.tokens.idToken;
 
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/collaborators`, {
-        headers: {
-          Authorization: token,
+      const response = await fetch(
+        `${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}/collaborators`,
+        {
+          headers: {
+            Authorization: token,
+          },
         }
-      });
+      );
 
       if (response.ok) {
-        const collaborators = await response.json();
-        
-        const formattedUsers = collaborators.map(collab => ({
+        const data = await response.json();
+
+        // Set agenda name from the response
+        setAgendaName(data.agenda_name);
+
+        // Format collaborators data
+        const formattedUsers = data.collaborators.map((collab) => ({
           id: collab.id_agenda_collaborator,
           fullName: `${collab.first_name} ${collab.last_name}`,
           status: "Authorized",
@@ -58,26 +65,6 @@ export default function AddUsers() {
       console.error("Error fetching collaborators:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchAgendaName = async () => {
-    try {
-      const session = await fetchAuthSession();
-      const token = session.tokens.idToken;
-
-      const response = await fetch(`${import.meta.env.VITE_API_ENDPOINT}agenda/${agendaId}`, {
-        headers: {
-          Authorization: token,
-        }
-      });
-
-      if (response.ok) {
-        const agenda = await response.json();
-        setAgendaName(agenda.agenda_name);
-      }
-    } catch (error) {
-      console.error("Error fetching agenda:", error);
     }
   };
 
@@ -100,7 +87,14 @@ export default function AddUsers() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
         <Typography variant="h4" sx={{ fontWeight: 600, color: "#1F2937" }}>
           {agendaName}
         </Typography>
@@ -180,7 +174,7 @@ export default function AddUsers() {
           </TableBody>
         </Table>
       </TableContainer>
-      
+
       <AddUserModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}

@@ -7,7 +7,6 @@ import {
   Typography,
   Drawer,
 } from "@mui/material";
-
 const tabs = [
   "Collaborators",
   "Responses",
@@ -17,7 +16,11 @@ const tabs = [
   "Insights Generator",
 ];
 
-export default function ResearcherSidebar({ activeTab, onTabChange }) {
+export default function ResearcherSidebar({
+  activeTab,
+  onTabChange,
+  agendaName,
+}) {
   return (
     <Drawer
       variant="permanent"
@@ -35,7 +38,7 @@ export default function ResearcherSidebar({ activeTab, onTabChange }) {
     >
       <Box sx={{ p: 2 }}>
         <Typography variant="body2" color="text.primary" sx={{ mb: 1 }}>
-          Spatial Empathy
+          {agendaName || "Agenda"}
         </Typography>
       </Box>
 

@@ -39,7 +39,7 @@ export default function ChatTab() {
     {
       id: 1,
       content:
-        "Hello! I'm your AI assistant for spatial empathy analysis. How can I help you today?",
+        "Hello! I'm your AI assistant for research analysis. How can I help you today?",
       sender: "ai",
       timestamp: new Date(),
     },
@@ -48,6 +48,7 @@ export default function ChatTab() {
   const [isChatSessionsOpen, setIsChatSessionsOpen] = useState(false);
   const [currentSession, setCurrentSession] = useState(1);
   const [selectedModel, setSelectedModel] = useState("Meta Llama 3 8b");
+  const [agendaName, setAgendaName] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
@@ -74,7 +75,9 @@ export default function ChatTab() {
         );
 
         if (response.ok) {
-          const sessions = await response.json();
+          const data = await response.json();
+          setAgendaName(data.agenda_name);
+          const sessions = data.sessions;
           // Sort sessions by updated_at descending (most recent first)
           const sortedSessions = sessions.sort(
             (a, b) =>
@@ -416,7 +419,7 @@ export default function ChatTab() {
       >
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 600, color: "#1F2937" }}>
-            Spatial Empathy Assistant
+            {agendaName} Assistant
           </Typography>
           <Typography variant="body2" color="text.secondary">
             AI-powered analysis and insights

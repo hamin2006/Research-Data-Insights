@@ -118,7 +118,7 @@ def get_scoring_prompt(research_agenda_id: str | None) -> str:
         if row and row.get("prompt_text"):
             return row["prompt_text"]
 
-    return "Do you think the response invokes {{metric_name}}? Provide {{metric_description}}. Limit your response to an integer number between 1 and 10. Do not explain anything further. Please adhere to these guidelines strictly.\n\nText:\n{{text}}\n"
+    return "Do you think the response invokes {{metric_name}} (scoring metric)? Metric Description: {{metric_description}}. Limit your response to an integer number between 1 and 10. Do not explain anything further. Please adhere to these guidelines strictly.\n\nText:\n{{text}}\n"
 
 def render_prompt(template: str, *, text: str, metric_name: str = "", metric_description: str = "", **kwargs) -> str:
     """Supports both {{text}} and {text} placeholders, plus {{metric_name}} and {{metric_description}}."""

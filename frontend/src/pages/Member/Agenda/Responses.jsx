@@ -111,7 +111,7 @@ export default function Responses() {
   }
 
   if (selectedGroup) {
-    return <ResponseGroups group={selectedGroup} onBack={handleBackClick} />;
+    return <ResponseGroups agendaName = {agendaName} group={selectedGroup} onBack={handleBackClick} />;
   }
 
   return (
@@ -179,7 +179,7 @@ export default function Responses() {
                   cursor: "pointer",
                   backgroundColor: "transparent",
                 }}
-                onClick={() => handleGroupClick(group)}
+                onClick={() => group.upload_status != "uploaded" ? "" : handleGroupClick(group)}
               >
                 <TableCell
                   sx={{

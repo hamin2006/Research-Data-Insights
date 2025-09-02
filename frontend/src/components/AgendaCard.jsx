@@ -28,8 +28,12 @@ function AgendaCard({ agenda, index, role, onClick, onDelete }) {
   const handleDelete = async (event) => {
     event.stopPropagation();
     handleMenuClose();
-    
-    if (window.confirm('Are you sure you want to delete this agenda? This action cannot be undone.')) {
+
+    if (
+      window.confirm(
+        "Are you sure you want to delete this agenda? This action cannot be undone."
+      )
+    ) {
       await onDelete(agenda.id);
     }
   };
@@ -42,7 +46,7 @@ function AgendaCard({ agenda, index, role, onClick, onDelete }) {
         background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
         border: "1px solid rgba(0,0,0,0.08)",
       }}
-      onClick={() => onClick(agenda.id)}
+      onClick={() => onClick(agenda.id, agenda.title)}
     >
       <CardHeader
         title={
@@ -122,7 +126,9 @@ function AgendaCard({ agenda, index, role, onClick, onDelete }) {
         onClose={handleMenuClose}
         onClick={(e) => e.stopPropagation()}
       >
-        <MenuItem onClick={handleMenuClose}>View Details</MenuItem>
+        <MenuItem onClick={() => onClick(agenda.id, agenda.title)}>
+          View Details
+        </MenuItem>
         {role === "researcher" ? (
           <>
             <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>

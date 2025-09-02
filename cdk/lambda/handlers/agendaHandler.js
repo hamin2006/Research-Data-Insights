@@ -335,6 +335,15 @@ exports.handler = async (event) => {
           throw new Error("Missing user ID");
         }
 
+        // Get agenda name first
+        const agendaRow = await sqlConnection`
+    SELECT agenda_name FROM research_agenda WHERE id_research_agenda = ${agenda_id}
+  `;
+
+        if (!agendaRow || agendaRow.length === 0) {
+          throw new Error("Agenda not found");
+        }
+
         const collaborators = await sqlConnection`
     SELECT ac.*, u.first_name, u.last_name, u.user_email, u.roles,
            added_by_user.first_name as added_by_first_name, 
@@ -346,7 +355,10 @@ exports.handler = async (event) => {
     ORDER BY ac.added_at DESC
   `;
 
-        response.body = JSON.stringify(collaborators);
+        response.body = JSON.stringify({
+          agenda_name: agendaRow[0].agenda_name,
+          collaborators: collaborators,
+        });
         break;
       }
 
@@ -418,6 +430,15 @@ exports.handler = async (event) => {
     SELECT user_id FROM users WHERE cognito_id = ${cognito_id}
   `;
 
+        // Get agenda name first
+        const agendaRow = await sqlConnection`
+    SELECT agenda_name FROM research_agenda WHERE id_research_agenda = ${agenda_id}
+  `;
+
+        if (!agendaRow || agendaRow.length === 0) {
+          throw new Error("Agenda not found");
+        }
+
         const sessions = await sqlConnection`
     SELECT id_chat_session, session_name, created_at, updated_at
     FROM chat_sessions 
@@ -425,7 +446,10 @@ exports.handler = async (event) => {
     ORDER BY updated_at DESC
   `;
 
-        response.body = JSON.stringify(sessions);
+        response.body = JSON.stringify({
+          agenda_name: agendaRow[0].agenda_name,
+          sessions: sessions,
+        });
         break;
       }
 

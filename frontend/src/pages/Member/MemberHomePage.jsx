@@ -66,8 +66,8 @@ const MemberHomePage = () => {
     fetchAgendasWithDetails();
   }, []);
 
-  const handleMemberViewAgenda = (id) => {
-    navigate(`/agenda/${id}/responses`);
+  const handleMemberViewAgenda = (id, agendaName) => {
+    navigate(`/agenda/${id}/responses`, { state: { agendaName } });
   };
 
   const handleDeleteAgenda = async (agendaId) => {
@@ -129,7 +129,7 @@ const MemberHomePage = () => {
                 agenda={agenda}
                 index={index}
                 role="member"
-                onClick={() => handleMemberViewAgenda(agenda.id)}
+                onClick={() => handleMemberViewAgenda(agenda.id, agenda.title)}
                 onDelete={() => handleDeleteAgenda(agenda.id)}
               />
             </Grid>

@@ -14,7 +14,7 @@ const tabs = [
   "Insights Generator",
 ];
 
-export default function MemberSidebar({ activeTab, onTabChange }) {
+export default function MemberSidebar({ activeTab, onTabChange, agendaName }) {
   return (
     <Drawer
       variant="permanent"
@@ -32,7 +32,7 @@ export default function MemberSidebar({ activeTab, onTabChange }) {
     >
       <Box sx={{ p: 2 }}>
         <Typography variant="body2" color="text.primary" sx={{ mb: 1 }}>
-          Spatial Empathy
+          {agendaName || "Agenda"}
         </Typography>
       </Box>
 
