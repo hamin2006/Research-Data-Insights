@@ -29,8 +29,6 @@ import {
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import AgendaCard from "../../components/AgendaCard";
-import ResearcherNavbar from "../../components/ResearcherNavbar";
-import MemberNavbar from "../../components/MemberNavbar";
 import { useNavigate } from "react-router-dom";
 import { fetchAuthSession } from "aws-amplify/auth";
 
@@ -101,13 +99,15 @@ export default function Component({ role }) {
       );
 
       if (response.ok) {
-        setAgendas(agendas.filter(agenda => agenda.id_research_agenda !== agendaId));
+        setAgendas(
+          agendas.filter((agenda) => agenda.id_research_agenda !== agendaId)
+        );
       } else {
-        alert('Failed to delete agenda');
+        alert("Failed to delete agenda");
       }
     } catch (error) {
       console.error("Error deleting agenda:", error);
-      alert('Error deleting agenda');
+      alert("Error deleting agenda");
     }
   };
 
@@ -127,7 +127,6 @@ export default function Component({ role }) {
         background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
       }}
     >
-      {role === "researcher" ? <ResearcherNavbar /> : <MemberNavbar />}
       {/* Main Content */}
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Page Title */}
@@ -204,7 +203,7 @@ export default function Component({ role }) {
                   index={index}
                   role={role}
                   onClick={handleResearchViewAgenda}
-                  onDelete={handleDeleteAgenda} 
+                  onDelete={handleDeleteAgenda}
                 />
               </Grid>
             ))

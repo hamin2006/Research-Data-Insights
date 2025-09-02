@@ -8,7 +8,7 @@ import {
 import { Amplify } from "aws-amplify";
 import { fetchAuthSession } from "aws-amplify/auth";
 
-import { useEffect, useState, createContext } from "react";
+import { useEffect, useState } from "react";
 import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import Login from "./pages/Login";
 import MemberHomePage from "./pages/Member/MemberHomePage";
@@ -18,6 +18,7 @@ import AllAgendas from "./pages/Researcher/AllAgendas";
 import AgendaView from "./pages/AgendaView";
 import AISettings from "./pages/Admin/AISettings";
 import AgendaForm from "./pages/Researcher/ResearcherAddAgendaView";
+import Navbar from "./components/Navbar";
 
 Amplify.configure({
   API: {
@@ -40,7 +41,6 @@ Amplify.configure({
 function App() {
   const [user, setUser] = useState(null);
   const [userGroup, setUserGroup] = useState(null);
-  const [group, setGroup] = useState(null);
 
   const ProtectedRoute = ({ allowedGroups, userGroup, element }) => {
     if (!userGroup) return null;
@@ -140,6 +140,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
+        <Navbar userRole={getUserRole()} />
         <Routes>
           <Route
             path="/"

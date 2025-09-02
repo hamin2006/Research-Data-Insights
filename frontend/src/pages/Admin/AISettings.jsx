@@ -10,7 +10,6 @@ import {
   Checkbox,
   FormControlLabel,
 } from "@mui/material";
-import AdminNavbar from "../../components/AdminNavbar";
 import WarningModal from "../../components/WarningModal";
 import { fetchAuthSession } from "aws-amplify/auth";
 
@@ -103,7 +102,6 @@ function AISettings() {
         background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
       }}
     >
-      <AdminNavbar />
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 4 }}>
           AI Settings

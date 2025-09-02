@@ -9,8 +9,6 @@ import AISettings from "./Researcher/Agenda/AISettings";
 import Responses from "./Member/Agenda/Responses";
 import ContextDocuments from "./Member/Agenda/ContextDocuments";
 import ChatTab from "./Member/Agenda/ChatTab";
-import MemberNavbar from "../components/MemberNavbar";
-import ResearcherNavbar from "../components/ResearcherNavbar";
 
 export default function MemberAgendaView({ tab, role }) {
   const { agendaId } = useParams();
@@ -67,8 +65,6 @@ export default function MemberAgendaView({ tab, role }) {
 
   const Sidebar = role === "member" ? MemberSidebar : ResearcherSidebar;
 
-  const Navbar = role === "member" ? MemberNavbar : ResearcherNavbar;
-
   return (
     <Box
       sx={{
@@ -78,7 +74,6 @@ export default function MemberAgendaView({ tab, role }) {
         minWidth: "99vw",
       }}
     >
-      <Navbar />
       <Box sx={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar activeTab={tab} onTabChange={goToActiveTab} />
         <Box

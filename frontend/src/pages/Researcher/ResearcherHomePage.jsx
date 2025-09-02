@@ -1,6 +1,5 @@
 import { Typography, Grid, Box, Container } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import ResearcherNavbar from "../../components/ResearcherNavbar";
 import AgendaCard from "../../components/AgendaCard";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -63,13 +62,15 @@ const ResearcherHomePage = () => {
       );
 
       if (response.ok) {
-        setAgendas(agendas.filter(agenda => agenda.id_research_agenda !== agendaId));
+        setAgendas(
+          agendas.filter((agenda) => agenda.id_research_agenda !== agendaId)
+        );
       } else {
-        alert('Failed to delete agenda');
+        alert("Failed to delete agenda");
       }
     } catch (error) {
       console.error("Error deleting agenda:", error);
-      alert('Error deleting agenda');
+      alert("Error deleting agenda");
     }
   };
 
@@ -81,8 +82,6 @@ const ResearcherHomePage = () => {
         background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
       }}
     >
-      <ResearcherNavbar />
-
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography
@@ -119,7 +118,7 @@ const ResearcherHomePage = () => {
                   onClick={() =>
                     handleResearchViewAgenda(agenda.id_research_agenda)
                   }
-                  onDelete={() => handleDeleteAgenda(agenda.id_research_agenda)} 
+                  onDelete={() => handleDeleteAgenda(agenda.id_research_agenda)}
                 />
               </Grid>
             ))

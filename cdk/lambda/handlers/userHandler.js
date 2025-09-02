@@ -197,7 +197,7 @@ exports.handler = async (event) => {
           WHERE cognito_id = ${targetCognitoId};
         `;
 
-        console.log(userToUpdate);
+          console.log(userToUpdate);
 
           if (userToUpdate.length === 0) {
             response.statusCode = 404;
@@ -225,13 +225,13 @@ exports.handler = async (event) => {
             if (!userRoles.includes("researcher")) {
               userRoles.push("researcher");
             }
-            
+
             updatedUser = await sqlConnection`
               UPDATE "users"
               SET roles = ${userRoles}
               WHERE cognito_id = ${targetCognitoId}
               RETURNING *;
-            `;            
+            `;
           } else {
             // Remove researcher role if present
             updatedUser = await sqlConnection`

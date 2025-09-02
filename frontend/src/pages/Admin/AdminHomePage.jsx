@@ -33,7 +33,6 @@ import {
   Close as CloseIcon,
 } from "@mui/icons-material";
 import CssBaseline from "@mui/material/CssBaseline";
-import AdminNavbar from "../../components/AdminNavbar";
 import { fetchAuthSession } from "aws-amplify/auth";
 
 export default function AdminHomePage() {
@@ -258,8 +257,6 @@ export default function AdminHomePage() {
           background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
         }}
       >
-        <AdminNavbar />
-
         <Container maxWidth="xl" sx={{ py: 4 }}>
           <Box
             sx={{

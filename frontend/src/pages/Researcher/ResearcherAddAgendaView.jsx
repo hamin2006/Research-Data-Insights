@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
-import ResearcherNavbar from "../../components/ResearcherNavbar";
 import {
   Box,
   Container,
@@ -221,7 +220,6 @@ export default function AgendaForm() {
         background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
       }}
     >
-      <ResearcherNavbar />
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Card
           elevation={0}
