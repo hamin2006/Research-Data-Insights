@@ -12,6 +12,8 @@ from PyPDF2 import PdfReader
 import docx
 from urllib.request import urlopen
 import pandas as pd
+import csv
+import itertools
 from psycopg2._psycopg import connection as PgConnection
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
@@ -100,35 +102,19 @@ def process_docx(tmp_file_path: str, filename: str, output_bucket: str) -> List[
     return output_keys
 
 def process_csv(tmp_file_path: str, filename: str, output_bucket: str) -> List[str]:
-    """Process CSV file in chunks and store formatted text in S3."""
+    """Process CSV file row by row and store each row as formatted text in S3."""
     output_keys = []
-    df = pd.read_csv(tmp_file_path, skiprows=[1])
-
-    # Detect and remove common prefix
-    common_prefix = os.path.commonprefix(df.columns.tolist())
-    clean_columns = [col.replace(common_prefix, '').strip(": ") for col in df.columns]
-    df.columns = clean_columns
-
-    # Process in chunks of 100 rows
-    chunk_size = 100
-    for chunk_num, chunk_start in enumerate(range(0, len(df), chunk_size), start=1):
-        chunk_df = df.iloc[chunk_start:chunk_start + chunk_size]
-        
-        text_entries = []
-        for _, row in chunk_df.iterrows():
-            entry = []
-            for col in chunk_df.columns:
-                val = str(row[col]).strip()
-                if val and val.lower() != 'nan':
-                    entry.append(f"{col}:\n{val}")
-            text_entries.append("\n\n".join(entry))
-        
-        page_text = "\n\n---\n\n".join(text_entries).encode("utf8")
-        page_output_key = f'{filename}_page_{chunk_num}.txt'
-        output_keys.append(page_output_key)
-        
-        with BytesIO(page_text) as page_output_buffer:
-            s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
+    with open(tmp_file_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        headers = reader.fieldnames
+        for i, row in enumerate(reader):
+            # Convert each row to text format, only including non-empty values
+            text = "; ".join(f"{col}: {row[col]}" for col in headers if row[col] and str(row[col]).strip())
+            if text.strip():  # Only create file if there's actual content
+                page_output_key = f'{filename}_row_{i}.txt'
+                output_keys.append(page_output_key)
+                with BytesIO(text.encode("utf8")) as page_output_buffer:
+                    s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
     
     return output_keys
 
@@ -178,7 +164,7 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
     response = urlopen(transcript_uri)
     data = json.loads(response.read())
     transcript_text = format_diarized_transcript(data).encode("utf8")
-    output_key = f'{filename}_transcript.txt'
+    output_key = f'{filename}_transcript_1.txt'
     output_keys.append(output_key)
 
     with BytesIO(transcript_text) as page_output_buffer:
@@ -186,63 +172,111 @@ def process_mp3(tmp_file_path: str, filename: str, output_bucket: str) -> List[s
 
     return output_keys
 
-def parse_responses(doc_text: str, doc_id: str, agenda_id: str, file_path: str, db_connection: PgConnection) -> List[str]:
+def store_csv_row_response(doc_text: str, doc_id: str, agenda_id: str, file_path: str, db_connection: PgConnection) -> None:
+    """
+    Store a CSV row as a single response directly in the database without LLM parsing.
+    
+    Args:
+        doc_text (str): The text content of the CSV row.
+        doc_id (str): The UUID of the research observation document.
+        agenda_id (str): The UUID of the research agenda.
+        file_path (str): The file path for the response.
+        db_connection (PgConnection): The PostgreSQL database connection object.
+    """
+    try:
+        if doc_text.strip():  # Only store non-empty responses
+            file_name, file_ext = file_path.rsplit('.', 1)
+            response_output_key = f'{file_name}_response_0.txt'
+            
+            # Store the response text in S3
+            with BytesIO(doc_text.encode('utf8')) as response_output_buffer:
+                s3.upload_fileobj(response_output_buffer, SCORING_BUCKET, response_output_key)
+
+            # Store the response in the database
+            cursor = db_connection.cursor()
+            cursor.execute("""
+                INSERT INTO individual_responses 
+                (observation_id, research_agenda_id, response_text, response_order, metadata, file_path)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                doc_id,
+                agenda_id, 
+                doc_text,
+                0,  # CSV rows are single responses, so order is always 0
+                json.dumps({"source": "csv_row", "processing_type": "direct"}),
+                response_output_key
+            ))
+            
+            db_connection.commit()
+            logger.info(f"Stored CSV row response for observation {doc_id}")
+            
+    except Exception as e:
+        logger.error(f"Error storing CSV row response: {e}")
+        db_connection.rollback()
+
+def parse_responses(doc_text: str, chunk_type: str, doc_id: str, agenda_id: str, file_path: str, db_connection: PgConnection) -> List[str]:
     """
     Parse the responses from the document text and store them in the database.
 
     Args:
         doc_text (str): The text of the document.
+        chunk_type (str): The type of chunk being processed.
         doc_id (str): The UUID of the research observation document.
         agenda_id (str): The UUID of the research agenda.
+        file_path (str): The file path for the response.
         db_connection (PgConnection): The PostgreSQL database connection object.
 
     Returns:
         List[str]: A list of parsed responses.
     """
-    bedrock = boto3.client("bedrock-runtime", region_name=REGION)
+    # For CSV rows, handle directly without LLM
+    if chunk_type == "row":
+        store_csv_row_response(doc_text, doc_id, agenda_id, file_path, db_connection)
+        return [doc_text]  # Return the single response
+    if not chunk_type == "row":
+        bedrock = boto3.client("bedrock-runtime", region_name=REGION)
 
-    prompt = f"""
-        You are given raw survey text from multiple students.
-        Each student's response may be separated by headers, numbering, or line breaks.
-        Split this text into a JSON list of string responses (not objects) where each item is a separate student's full response.
-        Return an empty list '[]' if you detect no responses
-        Text:
-        {doc_text}
+        prompt = f"""
+            You are given raw survey text from multiple students.
+            Each student's response may be separated by headers, numbering, or line breaks.
+            Split this text into a JSON list of string responses (not objects) where each item is a separate student's full response.
+            Return an empty list '[]' if you detect no responses
+            Text:
+            {doc_text}
 
-        Return only the JSON list
-        """
-    body = {
-        "prompt": prompt,
-        "max_gen_len": 4096,
-        "temperature": 0.0
-    }
+            Return only the JSON list
+            """
+        body = {
+            "prompt": prompt,
+            "max_gen_len": 4096,
+            "temperature": 0.0
+        }
 
-    res = bedrock.invoke_model(
-        modelId="meta.llama3-70b-instruct-v1:0",
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps(body)
-    )
-    model_output = json.loads(res["body"].read())
-    json_text = model_output.get("generation", "")
+        res = bedrock.invoke_model(
+            modelId="meta.llama3-70b-instruct-v1:0",
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(body)
+        )
+        model_output = json.loads(res["body"].read())
+        json_text = model_output.get("generation", "")
 
-    start = json_text.find('[')
-    if start == -1:
-        logger.warning("Error: Could not find JSON array in the model output.")
-    
-    bracket_count = 0
-    end = start
-    
-    for i in range(start, len(json_text)):
-        if json_text[i] == '[':
-            bracket_count += 1
-        elif json_text[i] == ']':
-            bracket_count -= 1
-            if bracket_count == 0:
-                end = i + 1
-                break
-    
-    text = json_text[start:end]
+        start = json_text.find('[')
+        if start == -1:
+            logger.warning("Error: Could not find JSON array in the model output.")
+        
+        bracket_count = 0
+        end = start
+        
+        for i in range(start, len(json_text)):
+            if json_text[i] == '[':
+                bracket_count += 1
+            elif json_text[i] == ']':
+                bracket_count -= 1
+                if bracket_count == 0:
+                    end = i + 1
+                    break
+        text = json_text[start:end]
     file_name, file_type = file_path.rsplit('.', 1)
 
     try:
@@ -342,29 +376,47 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         output_buffer.seek(0)
         doc_text = output_buffer.read().decode('utf-8')
 
+        document_name, chunk_type, chunk_with_ext = filename.split('_')
+        section_num = chunk_with_ext.split('.')[0]
+        true_filename = document_name.split("/")[-1] 
+        
+        # Check if this is a CSV row
+        is_csv_row = chunk_type == "row"
+        
         if document_type == "observation_documents":
-            parse_responses(doc_text=doc_text, doc_id=doc_id, agenda_id=agenda, file_path=filename, db_connection=db_connection)
+            parse_responses(doc_text=doc_text, chunk_type=chunk_type, doc_id=doc_id, agenda_id=agenda, file_path=filename, db_connection=db_connection)
         
-        doc_chunks = text_splitter.create_documents([doc_text])
-        
-        head, _, tail = filename.partition("_page_")
-        section_num = tail.split('.')[0] 
-        true_filename = head.split("/")[-1] 
-        
-        
-        doc_chunks = [x for x in doc_chunks if x.page_content]
-        
-        for doc_chunk in doc_chunks:
-            if doc_chunk:
-                doc_chunk.metadata["source"] = f"s3://{RDI_DATA_INGESTION_BUCKET}/{head}"
-                doc_chunk.metadata["document_section"] = section_num
-                doc_chunk.metadata["document_id"] = this_uuid
-                doc_chunk.metadata["document_type"] = document_type
-                doc_chunk.metadata["document_name"] = doc_name
-                doc_chunk.metadata["document_description"] = doc_description
-
-            else:
-                logger.warning(f"Empty chunk for {filename}")
+        if is_csv_row:
+            # For CSV rows, create a single document chunk without semantic splitting
+            doc_chunk = Document(
+                page_content=doc_text,
+                metadata={
+                    "source": f"s3://{RDI_DATA_INGESTION_BUCKET}/{filename}",
+                    "document_section": f"{chunk_type} {section_num}",
+                    "document_id": this_uuid,
+                    "document_type": document_type,
+                    "document_name": doc_name,
+                    "document_description": doc_description,
+                    "is_csv_row": True
+                }
+            )
+            doc_chunks = [doc_chunk] if doc_chunk.page_content.strip() else []
+        else:
+            # For non-CSV files, use semantic chunking as before
+            doc_chunks = text_splitter.create_documents([doc_text])
+            doc_chunks = [x for x in doc_chunks if x.page_content]
+            
+            for doc_chunk in doc_chunks:
+                if doc_chunk:
+                    doc_chunk.metadata["source"] = f"s3://{RDI_DATA_INGESTION_BUCKET}/{filename}"
+                    doc_chunk.metadata["document_section"] = f"{chunk_type} {section_num}"
+                    doc_chunk.metadata["document_id"] = this_uuid
+                    doc_chunk.metadata["document_type"] = document_type
+                    doc_chunk.metadata["document_name"] = doc_name
+                    doc_chunk.metadata["document_description"] = doc_description
+                    doc_chunk.metadata["is_csv_row"] = False
+                else:
+                    logger.warning(f"Empty chunk for {filename}")
         
         s3.delete_object(Bucket=bucket, Key=filename)
         print(f"Deleting {filename} from {bucket}")
