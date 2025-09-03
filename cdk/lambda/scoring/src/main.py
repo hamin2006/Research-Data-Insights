@@ -323,9 +323,10 @@ def handler(event, context):
     
     records = event.get('Records', [])
     if not records:
+        logger.warning("No valid S3 event found.")
         return {
-            "statusCode": 400,
-            "body": json.dumps("No valid S3 event found.")
+            "success": False,
+            "error": "No valid S3 event found."
         }
 
     for record in records:
@@ -374,6 +375,17 @@ def handler(event, context):
             # Update the database with scoring results
             update_success = update_response_score(file_key, text, predicted_score)
             
+            # Delete the response file from S3 after successful scoring and DB update
+            file_deleted = False
+            if update_success:
+                try:
+                    s3.delete_object(Bucket=SCORING_BUCKET, Key=file_key)
+                    file_deleted = True
+                    logger.info(f"Deleted response file from S3: {file_key}")
+                except Exception as e:
+                    logger.error(f"Error deleting response file from S3: {e}")
+                    # Don't fail the entire process if S3 deletion fails
+            
             resp = {
                 "file_key": file_key,
                 "text": text,
@@ -385,24 +397,27 @@ def handler(event, context):
                 "prompt": prompt,
                 "model_scores": per_model_scores,
                 "predicted_score": predicted_score,
-                "db_updated": update_success
+                "db_updated": update_success,
+                "file_deleted": file_deleted
             }
 
             logger.info(f"Scoring completed for {file_key}: {predicted_score}")
+            logger.info(f"Scoring response: {json.dumps(resp, indent=2)}")
             
             return {
-                "statusCode": 200,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps(resp)
+                "success": True,
+                "processed_file": file_key,
+                "score": predicted_score,
+                "file_deleted": file_deleted
             }
         except Exception as e:
-            print(f"[HandlerError] {e}")
+            logger.error(f"[HandlerError] {e}")
             return {
-                "statusCode": 500,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": str(e)})
+                "success": False,
+                "error": str(e),
+                "file_key": file_key if 'file_key' in locals() else "unknown"
             }
     return {
-        "statusCode": 400,
-        "body": json.dumps("No new file upload or deletion event found.")
+        "success": False,
+        "error": "No new file upload or deletion event found."
     }
