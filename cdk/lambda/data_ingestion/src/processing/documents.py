@@ -376,7 +376,7 @@ def store_doc_chunks(bucket: str, filenames: List[str], document_type: str, doc_
         output_buffer.seek(0)
         doc_text = output_buffer.read().decode('utf-8')
 
-        document_name, chunk_type, chunk_with_ext = filename.split('_')
+        document_name, chunk_type, chunk_with_ext = parts = filename.rsplit('_', 2)
         section_num = chunk_with_ext.split('.')[0]
         true_filename = document_name.split("/")[-1] 
         
