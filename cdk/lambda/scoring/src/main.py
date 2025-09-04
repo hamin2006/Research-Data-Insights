@@ -154,7 +154,7 @@ def make_num_words(N: int):
     """Mapping of number words/digits → int, cached per N."""
     num_words = {}
     for i in range(1, N + 1):
-        word = _inflect_engine.number_to_words(i)            # "forty-two"
+        word = _inflect_engine.number_to_words(i)            # "forty-two"k
         num_words[word] = i
         num_words[word.replace("-", " ")] = i                # "forty two"
         num_words[str(i)] = i                                # "42"
