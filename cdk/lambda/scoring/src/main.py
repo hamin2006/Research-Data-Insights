@@ -352,14 +352,20 @@ def handler(event, context):
 
             # 3) score using the specified scoring method
             per_model_scores = []
+            model_responses = []  # Track raw responses for debugging
             for mid in scoring_models:
                 try:
                     raw = invoke_model(mid, prompt)
+                    model_responses.append({"model": mid, "raw_response": raw})
                     score = extract_integer_score(raw, N=10)
                     if score is not None:
                         per_model_scores.append(score)
+                        logger.info(f"Model {mid} scored: {score} (raw: {raw[:100]}...)")
+                    else:
+                        logger.warning(f"Model {mid} returned no valid score. Raw response: {raw}")
                 except Exception as e:
-                    print(f"[ModelError] {mid} on {file_key}: {e}")
+                    logger.error(f"[ModelError] {mid} on {file_key}: {e}")
+                    model_responses.append({"model": mid, "error": str(e)})
 
             # Apply the appropriate scoring method
             if scoring_method == "Mean":
@@ -371,6 +377,11 @@ def handler(event, context):
             else:
                 # Default to majority if scoring_method is not recognized
                 predicted_score = majority(per_model_scores)
+            
+            # Log warning if no score was determined
+            if predicted_score is None:
+                logger.warning(f"No score determined for {file_key}. Valid scores from models: {per_model_scores}")
+                logger.warning(f"All model responses for {file_key}: {json.dumps(model_responses, indent=2)}")
 
             # Update the database with scoring results
             update_success = update_response_score(file_key, text, predicted_score)
@@ -398,7 +409,8 @@ def handler(event, context):
                 "model_scores": per_model_scores,
                 "predicted_score": predicted_score,
                 "db_updated": update_success,
-                "file_deleted": file_deleted
+                "file_deleted": file_deleted,
+                "model_responses": model_responses  # Include raw responses for debugging
             }
 
             logger.info(f"Scoring completed for {file_key}: {predicted_score}")
