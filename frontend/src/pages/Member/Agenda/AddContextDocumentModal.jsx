@@ -24,22 +24,79 @@ export default function AddContextDocumentModal({
   const [file, setFile] = useState(null);
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fileError, setFileError] = useState("");
   const { agendaId } = useParams();
+
+  const allowedFileTypes = [".csv", ".mp3", ".pdf", ".docx", ".txt"];
+  const allowedMimeTypes = [
+    "text/csv",
+    "audio/mpeg",
+    "audio/mp3",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+  ];
+
+  const validateFile = (selectedFile) => {
+    if (!selectedFile) return false;
+
+    const fileExtension =
+      "." + selectedFile.name.split(".").pop().toLowerCase();
+    const isValidType =
+      allowedFileTypes.includes(fileExtension) ||
+      allowedMimeTypes.includes(selectedFile.type);
+
+    if (!isValidType) {
+      setFileError(
+        "Please select a valid file type: CSV, MP3, PDF, DOCX, or TXT"
+      );
+      return false;
+    }
+
+    setFileError("");
+    return true;
+  };
+
+  const sanitizeFileName = (name) => {
+    if (!name) return name;
+
+    // Split filename and extension
+    const lastDotIndex = name.lastIndexOf(".");
+    const nameWithoutExt =
+      lastDotIndex > 0 ? name.substring(0, lastDotIndex) : name;
+    const extension = lastDotIndex > 0 ? name.substring(lastDotIndex) : "";
+
+    // Remove or replace problematic characters
+    // Keep only alphanumeric, hyphens, underscores, and periods
+    const sanitizedName = nameWithoutExt
+      .replace(/[^a-zA-Z0-9\-_]/g, "_") // Replace any non-alphanumeric (except - and _) with underscore
+      .replace(/_{2,}/g, "_") // Replace multiple consecutive underscores with single underscore
+      .replace(/^_+|_+$/g, ""); // Remove leading/trailing underscores
+
+    // Ensure we don't end up with an empty name
+    const finalName = sanitizedName || "file";
+
+    return finalName + extension.toLowerCase();
+  };
 
   const handleSubmit = async (e) => {
     setLoading(true);
     e.preventDefault();
     const session = await fetchAuthSession();
     const token = session.tokens.idToken;
-    const payload = JSON.parse(atob(token.toString().split(".")[1]));
-    const cognito_id = payload.sub;
+    const sanitizedFileName = sanitizeFileName(fileName);
+
     try {
       if (file) {
-        // Get presigned URL
+        // Get presigned URL - encode the filename for the URL parameter
         const urlResponse = await fetch(
-          `${import.meta.env.VITE_API_ENDPOINT}upload-url?file_name=${
-            file.name
-          }&file_type=${file.type}&agenda_id=${agendaId}&document_type=context`,
+          `${
+            import.meta.env.VITE_API_ENDPOINT
+          }upload-url?file_name=${encodeURIComponent(
+            sanitizedFileName
+          )}&file_type=${
+            file.type
+          }&agenda_id=${agendaId}&document_type=context`,
           {
             headers: {
               Authorization: token,
@@ -60,7 +117,7 @@ export default function AddContextDocumentModal({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              document_name: fileName,
+              document_name: sanitizedFileName,
               file_path: key,
               description: description,
               upload_status: "processing",
@@ -78,14 +135,14 @@ export default function AddContextDocumentModal({
       }
 
       onAddDocument({
-        document_name: fileName,
+        document_name: sanitizedFileName,
         description,
         upload_status: "processing",
       });
     } catch (error) {
       console.error("Error uploading document:", error);
       onAddDocument({
-        document_name: fileName,
+        document_name: sanitizedFileName,
         description,
         upload_status: "failed",
       });
@@ -101,6 +158,7 @@ export default function AddContextDocumentModal({
     setFileName("");
     setDescription("");
     setFile(null);
+    setFileError("");
     onClose();
   };
 
@@ -169,16 +227,30 @@ export default function AddContextDocumentModal({
             <Typography variant="body2" color="text.secondary">
               {file ? file.name : "Drag and drop files here or click to browse"}
             </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Supported formats: CSV, MP3, PDF, DOCX, TXT
+            </Typography>
             <VisuallyHiddenInput
               type="file"
               hidden
               onChange={(event) => {
-                setFile(event.target.files[0]);
-                setFileName(event.target.files[0].name);
+                const selectedFile = event.target.files[0];
+                if (selectedFile && validateFile(selectedFile)) {
+                  setFile(selectedFile);
+                  setFileName(selectedFile.name);
+                } else {
+                  setFile(null);
+                  setFileName("");
+                }
               }}
               multiple
             />
           </Button>
+          {fileError && (
+            <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+              {fileError}
+            </Typography>
+          )}
         </Box>
       </DialogContent>
 

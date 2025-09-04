@@ -1,11 +1,20 @@
 // const { v4: uuidv4 } = require('uuid')
-let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL, MESSAGE_LIMIT } =
-  process.env;
+let {
+  SM_DB_CREDENTIALS,
+  RDS_PROXY_ENDPOINT,
+  USER_POOL,
+  MESSAGE_LIMIT,
+  BUCKET,
+} = process.env;
 const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
+const { S3Client, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { initializeConnection } = require("./initializeConnection");
+
+// Initialize S3 client
+const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
 // SQL conneciton from global variable at lib.js
 let sqlConnection = global.sqlConnection;
@@ -502,6 +511,49 @@ exports.handler = async (event) => {
           throw new Error("Agenda not found or access denied");
         }
 
+        // Get all file paths before deleting from database for S3 cleanup
+        if (BUCKET) {
+          try {
+            // Get context document file paths
+            const contextDocs = await sqlConnection`
+              SELECT file_path FROM context_documents 
+              WHERE research_agenda_id = ${agenda_id} AND file_path IS NOT NULL
+            `;
+
+            // Get research observation file paths
+            const observations = await sqlConnection`
+              SELECT file_path FROM research_observations 
+              WHERE research_agenda_id = ${agenda_id} AND file_path IS NOT NULL
+            `;
+
+            // Delete all S3 files
+            const allFilePaths = [
+              ...contextDocs.map((doc) => doc.file_path),
+              ...observations.map((obs) => obs.file_path),
+            ].filter(Boolean);
+
+            for (const filePath of allFilePaths) {
+              try {
+                const deleteCommand = new DeleteObjectCommand({
+                  Bucket: BUCKET,
+                  Key: filePath,
+                });
+                await s3Client.send(deleteCommand);
+                console.log(`Successfully deleted S3 object: ${filePath}`);
+              } catch (s3Error) {
+                console.error(
+                  `Failed to delete S3 object ${filePath}:`,
+                  s3Error
+                );
+                // Continue with other deletions even if one fails
+              }
+            }
+          } catch (s3CleanupError) {
+            console.error("Error during S3 cleanup:", s3CleanupError);
+            // Continue with database deletion even if S3 cleanup fails
+          }
+        }
+
         // Delete in correct order to avoid foreign key violations
         await sqlConnection`DELETE FROM user_interactions WHERE research_agenda_id = ${agenda_id}`;
         await sqlConnection`DELETE FROM chat_sessions WHERE research_agenda_id = ${agenda_id}`;
@@ -668,24 +720,48 @@ exports.handler = async (event) => {
           throw new Error("Agenda not found or access denied");
         }
 
+        // Get the file_path before deleting from database
+        const documentInfo = await sqlConnection`
+          SELECT file_path FROM context_documents 
+          WHERE id_context_doc = ${context_document_id} 
+          AND research_agenda_id = ${agenda_id}
+        `;
+
+        if (!documentInfo || documentInfo.length === 0) {
+          throw new Error(
+            "Context document not found or doesn't belong to this agenda"
+          );
+        }
+
+        const filePath = documentInfo[0].file_path;
+
+        // Delete from S3 if file_path exists and BUCKET is configured
+        if (filePath && BUCKET) {
+          try {
+            const deleteCommand = new DeleteObjectCommand({
+              Bucket: BUCKET,
+              Key: filePath,
+            });
+            await s3Client.send(deleteCommand);
+            console.log(`Successfully deleted S3 object: ${filePath}`);
+          } catch (s3Error) {
+            console.error(`Failed to delete S3 object ${filePath}:`, s3Error);
+            // Continue with database deletion even if S3 deletion fails
+          }
+        }
+
         await sqlConnection`
           DELETE FROM langchain_pg_collection 
           WHERE name = ${context_document_id}
         `;
 
-        // Verify the context document belongs to this agenda and delete it
+        // Delete the context document from database
         const deleteResult = await sqlConnection`
           DELETE FROM context_documents 
           WHERE id_context_doc = ${context_document_id} 
           AND research_agenda_id = ${agenda_id}
           RETURNING id_context_doc
         `;
-
-        if (!deleteResult || deleteResult.length === 0) {
-          throw new Error(
-            "Context document not found or doesn't belong to this agenda"
-          );
-        }
 
         response.body = JSON.stringify({
           message: "Context document deleted successfully",
@@ -730,6 +806,36 @@ exports.handler = async (event) => {
           throw new Error("Agenda not found or access denied");
         }
 
+        // Get the file_path before deleting from database
+        const observationInfo = await sqlConnection`
+          SELECT file_path FROM research_observations 
+          WHERE id_research_observations = ${observation_id} 
+          AND research_agenda_id = ${agenda_id}
+        `;
+
+        if (!observationInfo || observationInfo.length === 0) {
+          throw new Error(
+            "Research observation not found or doesn't belong to this agenda"
+          );
+        }
+
+        const filePath = observationInfo[0].file_path;
+
+        // Delete from S3 if file_path exists and BUCKET is configured
+        if (filePath && BUCKET) {
+          try {
+            const deleteCommand = new DeleteObjectCommand({
+              Bucket: BUCKET,
+              Key: filePath,
+            });
+            await s3Client.send(deleteCommand);
+            console.log(`Successfully deleted S3 object: ${filePath}`);
+          } catch (s3Error) {
+            console.error(`Failed to delete S3 object ${filePath}:`, s3Error);
+            // Continue with database deletion even if S3 deletion fails
+          }
+        }
+
         await sqlConnection`
           DELETE FROM langchain_pg_collection 
           WHERE name = ${observation_id}
@@ -741,19 +847,13 @@ exports.handler = async (event) => {
           WHERE observation_id = ${observation_id}
         `;
 
-        // Verify the research observation belongs to this agenda and delete it
+        // Delete the research observation from database
         const deleteResult = await sqlConnection`
           DELETE FROM research_observations 
           WHERE id_research_observations = ${observation_id} 
           AND research_agenda_id = ${agenda_id}
           RETURNING id_research_observations
         `;
-
-        if (!deleteResult || deleteResult.length === 0) {
-          throw new Error(
-            "Research observation not found or doesn't belong to this agenda"
-          );
-        }
 
         response.body = JSON.stringify({
           message: "Research observation deleted successfully",

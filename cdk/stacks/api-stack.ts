@@ -987,6 +987,7 @@ export class ApiGatewayStack extends cdk.Stack {
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           USER_POOL: this.userPool.userPoolId,
+          BUCKET: documentsBucket.bucketName,
         },
         functionName: `${id}-agendaFunction`,
         memorySize: 512,
@@ -1007,6 +1008,9 @@ export class ApiGatewayStack extends cdk.Stack {
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/test-invoke-stage/*/*`,
     });
+
+    // Grant S3 delete permissions to agenda Lambda function
+    documentsBucket.grantDelete(lambdaAgendaFunction);
 
     const cfnLambda_agenda = lambdaAgendaFunction.node
       .defaultChild as lambda.CfnFunction;

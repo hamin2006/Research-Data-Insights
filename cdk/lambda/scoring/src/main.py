@@ -183,12 +183,56 @@ def extract_integer_score(raw: str, N: int):
     return None
 
 # -------- Bedrock invocation --------
-def invoke_model(model_id: str, prompt: str) -> str:
+def format_hyperparameters(model_id: str, hyperparams: dict) -> dict:
+    """Format hyperparameters for specific model types."""
+    if not hyperparams:
+        return {}
+    
+    formatted = {}
+    
+    if model_id.startswith("meta.llama"):
+        # Meta Llama format
+        if "topK" in hyperparams:
+            formatted["top_k"] = hyperparams["topK"]
+        if "topP" in hyperparams:
+            formatted["top_p"] = hyperparams["topP"]
+        if "temperature" in hyperparams:
+            formatted["temperature"] = hyperparams["temperature"]
+            
+    elif model_id.startswith("amazon.titan"):
+        # Amazon Titan format
+        if "topK" in hyperparams:
+            formatted["topK"] = hyperparams["topK"]
+        if "topP" in hyperparams:
+            formatted["topP"] = hyperparams["topP"]
+        if "temperature" in hyperparams:
+            formatted["temperature"] = hyperparams["temperature"]
+            
+    elif model_id.startswith("mistral."):
+        # Mistral format
+        if "topK" in hyperparams:
+            formatted["top_k"] = hyperparams["topK"]
+        if "topP" in hyperparams:
+            formatted["top_p"] = hyperparams["topP"]
+        if "temperature" in hyperparams:
+            formatted["temperature"] = hyperparams["temperature"]
+    
+    return formatted
+
+def invoke_model(model_id: str, prompt: str, hyperparams: dict = None) -> str:
     """Provider-normalized Bedrock call; returns raw generation text."""
+    formatted_hyperparams = format_hyperparameters(model_id, hyperparams or {})
+    
     if model_id.startswith("amazon.titan"):
-        body = json.dumps({"inputText": prompt})
+        body = {"inputText": prompt}
+        if formatted_hyperparams:
+            body["textGenerationConfig"] = formatted_hyperparams
+        body = json.dumps(body)
     else:
-        body = json.dumps({"prompt": prompt})
+        body = {"prompt": prompt}
+        if formatted_hyperparams:
+            body.update(formatted_hyperparams)
+        body = json.dumps(body)
 
     resp = brt.invoke_model(
         modelId=model_id,
@@ -355,7 +399,7 @@ def handler(event, context):
             model_responses = []  # Track raw responses for debugging
             for mid in scoring_models:
                 try:
-                    raw = invoke_model(mid, prompt)
+                    raw = invoke_model(mid, prompt, hyperparameter_settings)
                     model_responses.append({"model": mid, "raw_response": raw})
                     score = extract_integer_score(raw, N=10)
                     if score is not None:
