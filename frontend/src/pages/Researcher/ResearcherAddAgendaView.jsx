@@ -22,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function AgendaForm() {
   const navigate = useNavigate();
+  const [fileError, setFileError] = useState("");
 
   const [agenda, setAgenda] = useState({
     agenda_name: "",
@@ -30,6 +31,88 @@ export default function AgendaForm() {
     context_documents: [],
     research_observations: [],
   });
+
+  const allowedFileTypes = [".csv", ".mp3", ".pdf", ".docx", ".txt"];
+  const allowedMimeTypes = [
+    "text/csv",
+    "audio/mpeg",
+    "audio/mp3",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+  ];
+
+  // File size limits in bytes
+  const fileSizeLimits = {
+    ".csv": 50 * 1024 * 1024, // 50MB
+    ".txt": 50 * 1024 * 1024, // 50MB
+    ".docx": 50 * 1024 * 1024, // 50MB
+    ".pdf": 25 * 1024 * 1024, // 25MB
+    ".mp3": 100 * 1024 * 1024, // 100MB
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const validateFile = (selectedFile) => {
+    if (!selectedFile) return false;
+
+    const fileExtension =
+      "." + selectedFile.name.split(".").pop().toLowerCase();
+    const isValidType =
+      allowedFileTypes.includes(fileExtension) ||
+      allowedMimeTypes.includes(selectedFile.type);
+
+    if (!isValidType) {
+      setFileError(
+        "Please select a valid file type: CSV, MP3, PDF, DOCX, or TXT"
+      );
+      return false;
+    }
+
+    // Check file size
+    const maxSize = fileSizeLimits[fileExtension];
+    if (maxSize && selectedFile.size > maxSize) {
+      setFileError(
+        `File size (${formatFileSize(
+          selectedFile.size
+        )}) exceeds the limit of ${formatFileSize(
+          maxSize
+        )} for ${fileExtension.toUpperCase()} files`
+      );
+      return false;
+    }
+
+    setFileError("");
+    return true;
+  };
+
+  const sanitizeFileName = (name) => {
+    if (!name) return name;
+
+    // Split filename and extension
+    const lastDotIndex = name.lastIndexOf(".");
+    const nameWithoutExt =
+      lastDotIndex > 0 ? name.substring(0, lastDotIndex) : name;
+    const extension = lastDotIndex > 0 ? name.substring(lastDotIndex) : "";
+
+    // Remove or replace problematic characters
+    // Keep only alphanumeric, hyphens, underscores, and periods
+    const sanitizedName = nameWithoutExt
+      .replace(/[^a-zA-Z0-9\-_]/g, "_") // Replace any non-alphanumeric (except - and _) with underscore
+      .replace(/_{2,}/g, "_") // Replace multiple consecutive underscores with single underscore
+      .replace(/^_+|_+$/g, ""); // Remove leading/trailing underscores
+
+    // Ensure we don't end up with an empty name
+    const finalName = sanitizedName || "file";
+
+    return finalName + extension.toLowerCase();
+  };
 
   const addContextDoc = () => {
     setAgenda((prev) => ({
@@ -117,11 +200,15 @@ export default function AgendaForm() {
     // Upload context documents
     for (const doc of agenda.context_documents) {
       if (doc.file) {
-        // Get presigned URL
+        const sanitizedFileName = sanitizeFileName(doc.document_name);
+
+        // Get presigned URL - encode the filename for the URL parameter
         const urlResponse = await fetch(
-          `${import.meta.env.VITE_API_ENDPOINT}upload-url?file_name=${
-            doc.file.name
-          }&file_type=${
+          `${
+            import.meta.env.VITE_API_ENDPOINT
+          }upload-url?file_name=${encodeURIComponent(
+            sanitizedFileName
+          )}&file_type=${
             doc.file.type
           }&agenda_id=${agenda_id}&document_type=context`,
           {
@@ -144,7 +231,7 @@ export default function AgendaForm() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              document_name: doc.document_name,
+              document_name: sanitizedFileName,
               file_path: key,
               description: doc.description,
               upload_status: "processing",
@@ -164,11 +251,15 @@ export default function AgendaForm() {
     // Upload research observations
     for (const obs of agenda.research_observations) {
       if (obs.file) {
-        // Get presigned URL
+        const sanitizedFileName = sanitizeFileName(obs.document_name);
+
+        // Get presigned URL - encode the filename for the URL parameter
         const urlResponse = await fetch(
-          `${import.meta.env.VITE_API_ENDPOINT}upload-url?file_name=${
-            obs.file.name
-          }&file_type=${
+          `${
+            import.meta.env.VITE_API_ENDPOINT
+          }upload-url?file_name=${encodeURIComponent(
+            sanitizedFileName
+          )}&file_type=${
             obs.file.type
           }&agenda_id=${agenda_id}&document_type=observation`,
           {
@@ -192,7 +283,7 @@ export default function AgendaForm() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              document_name: obs.document_name,
+              document_name: sanitizedFileName,
               file_path: key,
               upload_status: "processing",
             }),
@@ -357,36 +448,63 @@ export default function AgendaForm() {
                             )}
                           </Box>
 
-                          <Button
-                            component="label"
-                            variant="outlined"
-                            startIcon={<UploadIcon />}
-                            sx={{
-                              justifyContent: "flex-start",
-                              textAlign: "left",
-                              borderStyle: "dashed",
-                              py: 1.5,
-                            }}
-                          >
-                            {doc.file ? doc.file.name : "Choose File"}
-                            <input
-                              type="file"
-                              hidden
-                              onChange={(e) => {
-                                updateContextDoc(
-                                  index,
-                                  "file",
-                                  e.target.files?.[0] || null
-                                );
-
-                                updateContextDoc(
-                                  index,
-                                  "document_name",
-                                  e.target.files?.[0]?.name || ""
-                                );
+                          <Box>
+                            <Button
+                              component="label"
+                              variant="outlined"
+                              startIcon={<UploadIcon />}
+                              sx={{
+                                justifyContent: "flex-start",
+                                textAlign: "left",
+                                borderStyle: "dashed",
+                                py: 1.5,
+                                width: "100%",
                               }}
-                            />
-                          </Button>
+                            >
+                              {doc.file ? doc.file.name : "Choose File"}
+                              <input
+                                type="file"
+                                hidden
+                                onChange={(e) => {
+                                  const selectedFile = e.target.files?.[0];
+                                  if (
+                                    selectedFile &&
+                                    validateFile(selectedFile)
+                                  ) {
+                                    updateContextDoc(
+                                      index,
+                                      "file",
+                                      selectedFile
+                                    );
+                                    updateContextDoc(
+                                      index,
+                                      "document_name",
+                                      selectedFile.name
+                                    );
+                                  } else {
+                                    updateContextDoc(index, "file", null);
+                                    updateContextDoc(
+                                      index,
+                                      "document_name",
+                                      ""
+                                    );
+                                  }
+                                }}
+                              />
+                            </Button>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                display: "block",
+                                mt: 0.5,
+                                fontSize: "0.7rem",
+                              }}
+                            >
+                              Supported: CSV, MP3, PDF, DOCX, TXT | Max sizes:
+                              CSV/TXT/DOCX (50MB), PDF (25MB), MP3 (100MB)
+                            </Typography>
+                          </Box>
 
                           <TextField
                             label="Description"
@@ -487,36 +605,63 @@ export default function AgendaForm() {
                             )}
                           </Box>
 
-                          <Button
-                            component="label"
-                            variant="outlined"
-                            startIcon={<UploadIcon />}
-                            sx={{
-                              justifyContent: "flex-start",
-                              textAlign: "left",
-                              borderStyle: "dashed",
-                              py: 1.5,
-                            }}
-                          >
-                            {obs.file ? obs.file.name : "Choose File"}
-                            <input
-                              type="file"
-                              hidden
-                              onChange={(e) => {
-                                updateObservation(
-                                  index,
-                                  "file",
-                                  e.target.files?.[0] || null
-                                );
-
-                                updateObservation(
-                                  index,
-                                  "document_name",
-                                  e.target.files?.[0]?.name || ""
-                                );
+                          <Box>
+                            <Button
+                              component="label"
+                              variant="outlined"
+                              startIcon={<UploadIcon />}
+                              sx={{
+                                justifyContent: "flex-start",
+                                textAlign: "left",
+                                borderStyle: "dashed",
+                                py: 1.5,
+                                width: "100%",
                               }}
-                            />
-                          </Button>
+                            >
+                              {obs.file ? obs.file.name : "Choose File"}
+                              <input
+                                type="file"
+                                hidden
+                                onChange={(e) => {
+                                  const selectedFile = e.target.files?.[0];
+                                  if (
+                                    selectedFile &&
+                                    validateFile(selectedFile)
+                                  ) {
+                                    updateObservation(
+                                      index,
+                                      "file",
+                                      selectedFile
+                                    );
+                                    updateObservation(
+                                      index,
+                                      "document_name",
+                                      selectedFile.name
+                                    );
+                                  } else {
+                                    updateObservation(index, "file", null);
+                                    updateObservation(
+                                      index,
+                                      "document_name",
+                                      ""
+                                    );
+                                  }
+                                }}
+                              />
+                            </Button>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                display: "block",
+                                mt: 0.5,
+                                fontSize: "0.7rem",
+                              }}
+                            >
+                              Supported: CSV, MP3, PDF, DOCX, TXT | Max sizes:
+                              CSV/TXT/DOCX (50MB), PDF (25MB), MP3 (100MB)
+                            </Typography>
+                          </Box>
                         </Stack>
                       </Paper>
                     ))}
@@ -535,6 +680,15 @@ export default function AgendaForm() {
                     </Button>
                   </Stack>
                 </Box>
+
+                {/* Error Display */}
+                {fileError && (
+                  <Box sx={{ pt: 1 }}>
+                    <Typography variant="body2" color="error">
+                      {fileError}
+                    </Typography>
+                  </Box>
+                )}
 
                 {/* Submit Button */}
                 <Box sx={{ pt: 2 }}>

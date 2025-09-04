@@ -37,6 +37,23 @@ export default function AddContextDocumentModal({
     "text/plain",
   ];
 
+  // File size limits in bytes
+  const fileSizeLimits = {
+    ".csv": 50 * 1024 * 1024, // 50MB
+    ".txt": 50 * 1024 * 1024, // 50MB
+    ".docx": 50 * 1024 * 1024, // 50MB
+    ".pdf": 25 * 1024 * 1024, // 25MB
+    ".mp3": 100 * 1024 * 1024, // 100MB
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
   const validateFile = (selectedFile) => {
     if (!selectedFile) return false;
 
@@ -49,6 +66,19 @@ export default function AddContextDocumentModal({
     if (!isValidType) {
       setFileError(
         "Please select a valid file type: CSV, MP3, PDF, DOCX, or TXT"
+      );
+      return false;
+    }
+
+    // Check file size
+    const maxSize = fileSizeLimits[fileExtension];
+    if (maxSize && selectedFile.size > maxSize) {
+      setFileError(
+        `File size (${formatFileSize(
+          selectedFile.size
+        )}) exceeds the limit of ${formatFileSize(
+          maxSize
+        )} for ${fileExtension.toUpperCase()} files`
       );
       return false;
     }
@@ -229,6 +259,13 @@ export default function AddContextDocumentModal({
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Supported formats: CSV, MP3, PDF, DOCX, TXT
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontSize: "0.7rem" }}
+            >
+              Max sizes: CSV/TXT/DOCX (50MB), PDF (25MB), MP3 (100MB)
             </Typography>
             <VisuallyHiddenInput
               type="file"
